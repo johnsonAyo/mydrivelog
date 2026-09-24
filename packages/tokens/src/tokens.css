@@ -1,0 +1,36 @@
+:root {
+  --surface-paper: #f7f7f2;
+  --surface-raised: #fbfaf6;
+  --surface-white: #ffffff;
+  --surface-green-soft: #f3f7f1;
+  --green-deep: #0b4a35;
+  --green-deeper: #123f32;
+  --green-muted: #173b30;
+  --ink: #262421;
+  --ink-soft: #68645c;
+  --text-on-green: #fbfaf6;
+  --line: #e5e1d8;
+  --line-strong: #d5cfc1;
+  --yellow-accent: #fff9ee;
+  --yellow-line: #deaa3f;
+  --yellow-plate: #ffcc00;
+  --orange-attention: #e86243;
+  --danger-deep: #902d1c;
+  --danger-control: #b13a2a;
+  --danger-soft: #fff2ee;
+  --attention-soft: #fff8f5;
+  --overlay: #2624211f;
+  --shadow-control: 2px 2px 0 0 var(--green-deep);
+  --shadow-panel: 0 20px 60px #2624210a;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+  --space-9: 7rem;
+  --product-control-radius: 4px;
+  --product-panel-radius: 6px;
+}

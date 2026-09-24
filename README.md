@@ -1,15 +1,36 @@
-# DriveTrack landing concept
+# DriveTrack
 
-Standalone landing-page prototype for DriveTrack. This folder is intentionally separate from the existing DriveTrack application.
+DriveTrack is an instructor-first lesson planning product. This repository combines the approved landing page, the existing availability backend, and an isolated product-component system. The earlier `drivetrack` repository remains untouched as a fallback; no database records or secrets were moved.
 
 ## Run locally
 
 ```bash
 npm install
+cp .env.example .env.local
+npm run db:migrate
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Requires Node.js 22 or later and PostgreSQL for database-backed routes. Open `http://localhost:3000` for the landing page and `/component-lab` for isolated product components. The lab uses sample data and is not an authenticated workspace. `/api/v1/health` does not require a database; readiness and availability routes do.
+
+## Verify
+
+```bash
+npm run verify
+```
+
+This runs stylesheet and product-style boundary checks, type-checking, backend tests, lint, and a production build. No database integration test is included.
+
+## Where things live
+
+- `src/app/page.tsx` and `src/components` — approved landing page and official neobrutalism.dev shadcn components.
+- `packages/tokens` — shared paper, ink, green, yellow, spacing, and shadow tokens.
+- `packages/ui` — prop-driven product primitives and isolated calendar, lesson, and debrief components.
+- `src/app/component-lab` — visual inventory with clearly marked sample data.
+- `src/app/api`, `src/presentation`, `src/application`, `src/domain`, `src/infrastructure` — migrated availability vertical slice, preserving clean-architecture boundaries.
+- `drizzle` — copied database migration and schema history.
+
+Read [the migration record](docs/MIGRATION.md), [component system](docs/COMPONENT_SYSTEM.md), [architecture](docs/ARCHITECTURE.md), and [product decisions](docs/PRODUCT_DECISIONS.md) before extending the product. `SPEC.md` contains earlier discovery context; confirmed decisions take precedence where they differ.
 
 ## Design notes
 
@@ -18,5 +39,5 @@ Open `http://localhost:3000`.
 - Bricolage Grotesque is self-hosted from the installed font package.
 - Button, Card, Badge, Accordion, and Tabs were initialized from the official `neobrutalism.dev` shadcn registry, then themed to the more restrained visual weight.
 - The sticky navigation follows the visible section and moves its yellow highlight as the page scrolls.
-- `src/app/globals.css` is the only CSS file. Landing rules are scoped to the page root so they cannot spill into the existing app if this concept is later integrated.
-- The concept uses shared tokens and no arbitrary Tailwind values in app markup. Its standalone official neobrutalism.dev components and page-specific presentation rules are not a literal implementation of the separate styling-discipline project's prop-only `packages/ui` API.
+- Landing rules remain scoped to `.landing-page`; product rules are keyed by `data-dt` attributes. Shared tokens are in `packages/tokens/src/tokens.css`.
+- The product components use a prop-driven API informed by the separate styling-discipline project, without importing its incompatible purple/Tailwind 3 package.
