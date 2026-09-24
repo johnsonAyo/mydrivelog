@@ -1,19 +1,20 @@
 # DriveTrack
 
-DriveTrack is an instructor-first lesson planning product. This repository combines the approved landing page, the existing availability backend, and an isolated product-component system. The earlier `drivetrack` repository remains untouched as a fallback; no database records or secrets were moved.
+DriveTrack is an instructor-first lesson planning product. This repository combines the approved landing page, the availability backend, and an isolated product-component system. The earlier `drivetrack` repository remains untouched as a fallback; no production records or secrets were moved.
 
 ## Run locally
 
 ```bash
 npm install
+npm run db:seed:dev
 npm run dev
 ```
 
-Requires Node.js 22 or later and PostgreSQL for database-backed routes. Open `http://localhost:3000` for the landing page, `/preview/today` and `/preview/calendar` for complete product-screen previews, and `/component-lab` for isolated components. These preview routes use sample data and need no authentication, email provider, or database; their controls do not save changes. `/api/v1/health` does not require a database; readiness and availability routes do.
+Requires Node.js 22 or later and PostgreSQL for database-backed routes. Set `DATABASE_URL` in ignored `.env.local`, migrate with `node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs migrate`, and set a UUID `DEV_WORKSPACE_ID` in ignored `.env.development.local` before seeding. The local Neon development database is already configured and seeded in this workspace. `npm run db:seed:dev` is idempotent. Open `http://localhost:3000/calendar` for the real database-backed Calendar; slots created there survive refresh. The landing page links to it in local development. `/component-lab` remains an isolated visual inventory using sample data, not a second application. `/api/v1/health` does not require a database; readiness and availability routes do.
 
-The authentication provider is not finalised. The existing email-link route is provisional and is **not required to review the design**. If testing that route, copy `.env.example` to `.env.local`, configure PostgreSQL, run `npm run db:migrate`, and set `APP_BASE_URL`, `RESEND_API_KEY`, and `ACCESS_EMAIL_FROM`; the sender address must be authorised for the configured Resend account. Start at `/get-started`; the email link creates a Solo workspace and starts its 14-day trial on first verification. Returning instructors use `/sign-in`. `/calendar` is the protected, database-backed instructor screen: it reads and creates availability, and exports all availability as JSON. The trial expires into read-only access; it does not delete records.
+The production authentication provider is not finalised. In local development only, `DEV_WORKSPACE_ID` resolves one seeded workspace without a login cookie. This bypasses the trial gate for testing the real Calendar, not for production; never set this variable in a shared or production deployment. Without the development workspace, existing session and trial controls remain in place. The existing email-link flow is provisional and is not needed for local Calendar testing.
 
-Subscription checkout, release/booking/debrief endpoints, and the corresponding working pages are not implemented yet. The £24/month Solo price and self-serve checkout are agreed product decisions, not live billing features. Do not launch the trial publicly without completing checkout and production email/abuse controls.
+Subscription checkout, release/booking/debrief endpoints, and the corresponding working pages are not implemented yet. The £24/month Solo price and self-serve checkout are agreed product decisions, not live billing features. Do not launch the trial publicly without completing authentication, checkout, and production email/abuse controls.
 
 ## Verify
 

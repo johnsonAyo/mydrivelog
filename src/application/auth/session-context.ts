@@ -4,8 +4,9 @@ export type SessionContext = {
   readonly workspaceStatus: "active" | "suspended";
   readonly trialEndsAt: Date | null;
   readonly paidThrough: Date | null;
+  readonly testingWorkspace?: true;
 };
 
 export interface SessionResolver {
-  resolve(rawToken: string): Promise<SessionContext | null>;
+  resolve(rawToken: string | null): Promise<SessionContext | null>;
 }

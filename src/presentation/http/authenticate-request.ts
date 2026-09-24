@@ -10,12 +10,7 @@ export async function authenticateRequest(
   resolver: SessionResolver,
 ): Promise<AuthenticationResult> {
   const cookieName = process.env.SESSION_COOKIE_NAME ?? "drivetrack_session";
-  const rawToken = request.cookies.get(cookieName)?.value;
-
-  if (!rawToken) {
-    return { ok: false, reason: "unauthenticated" };
-  }
-
+  const rawToken = request.cookies.get(cookieName)?.value ?? null;
   const session = await resolver.resolve(rawToken);
   if (!session) {
     return { ok: false, reason: "unauthenticated" };

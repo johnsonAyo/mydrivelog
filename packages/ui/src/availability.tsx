@@ -48,7 +48,8 @@ export function AvailabilityCalendar({
         </div>
         {headerAction}
       </header>
-      <div data-dt="calendar-scroll">
+      <p data-dt="calendar-scroll-hint">Swipe across to see the full week.</p>
+      <div data-dt="calendar-scroll" role="region" aria-label="Seven-day calendar, scroll horizontally to see the full week" tabIndex={0}>
         <div data-dt="calendar-grid" data-days={days.length}>
           {days.map((day, index) => (
             <section data-dt="calendar-day" key={`${day.label}-${day.date}`} aria-label={`${day.label} ${day.date}`}>

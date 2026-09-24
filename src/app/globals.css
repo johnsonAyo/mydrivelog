@@ -1426,6 +1426,7 @@ h3 {
 [data-dt="calendar-header"] > div, [data-dt="today-timeline"] > header, [data-dt="availability-editor"] > header, [data-dt="lesson-context"] > header, [data-dt="debrief-composer"] > header { align-items: start; }
 [data-dt="calendar-header"] > div, [data-dt="today-timeline"] > header, [data-dt="availability-editor"] > header, [data-dt="lesson-context"] > header, [data-dt="debrief-composer"] > header { display: grid; gap: .45rem; }
 [data-dt="calendar-scroll"] { overflow-x: auto; }
+[data-dt="calendar-scroll-hint"] { display: none; }
 [data-dt="calendar-grid"] { display: grid; grid-template-columns: repeat(7, minmax(120px, 1fr)); min-width: 720px; }
 [data-dt="calendar-day"] { min-height: 230px; border-right: 1px solid var(--line); }
 [data-dt="calendar-day"]:last-child { border-right: 0; }
@@ -1506,6 +1507,7 @@ h3 {
 }
 @media (max-width: 640px) {
   [data-dt="lab-grid"], [data-dt="editor-fields"] { grid-template-columns: 1fr; }
+  [data-dt="calendar-scroll-hint"] { display: block; margin: 0; padding: .55rem var(--space-5); border-bottom: 1px solid var(--line); color: var(--ink-soft); font-size: .75rem; }
   [data-dt="product-header"] { align-items: start; flex-direction: column; }
   [data-dt="today-timeline"] li { grid-template-columns: 40px 10px minmax(0, 1fr); gap: var(--space-2); }
   [data-dt="timeline-lesson"] { flex-direction: column; }

@@ -6,6 +6,7 @@ import { instructorSessions, workspaces } from "@/infrastructure/database/schema
 
 export const postgresSessionResolver: SessionResolver = {
   async resolve(rawToken) {
+    if (!rawToken) return null;
     const { db } = getDatabase();
     const tokenHash = createHash("sha256").update(rawToken).digest("hex");
     const [session] = await db

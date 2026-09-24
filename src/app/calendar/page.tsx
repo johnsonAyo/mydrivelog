@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { CalendarDays } from "lucide-react";
 import { ProductShell } from "@drivetrack/ui";
 import { AvailabilityWorkspace } from "@/components/availability-workspace";
-import { postgresSessionResolver } from "@/infrastructure/auth/postgres-session-resolver";
+import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Calendar — DriveTrack" };
@@ -12,8 +12,7 @@ export const metadata: Metadata = { title: "Calendar — DriveTrack" };
 export default async function CalendarPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(process.env.SESSION_COOKIE_NAME ?? "drivetrack_session")?.value;
-  if (!token) redirect("/sign-in");
-  const session = await postgresSessionResolver.resolve(token);
+  const session = await currentSessionResolver.resolve(token ?? null);
   if (!session) redirect("/sign-in");
   if (session.workspaceStatus === "suspended") redirect("/sign-in");
   const renderedAt = new Date();
@@ -27,6 +26,7 @@ export default async function CalendarPage() {
       identity="Independent instructor workspace"
     >
       <AvailabilityWorkspace
+        testingWorkspace={session.testingWorkspace === true}
         trialEndsAt={session.trialEndsAt?.toISOString() ?? null}
         paidThrough={session.paidThrough?.toISOString() ?? null}
         renderedAt={renderedAt.toISOString()}

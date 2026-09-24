@@ -1,6 +1,6 @@
 # Product component system
 
-The component lab at `/component-lab` is the visual inventory. It is separate from authenticated routes and uses inert actions and sample data. This keeps future API work from being confused with a functioning workflow.
+The component lab at `/component-lab` is the visual inventory. It uses inert actions and sample data; `/calendar` is the real, database-backed Calendar. This keeps visual examples separate from functioning workflows.
 
 ## Discipline
 
@@ -15,8 +15,8 @@ The component lab at `/component-lab` is the visual inventory. It is separate fr
 | Layer | Components | State today |
 | --- | --- | --- |
 | Foundations | Container, Stack, Inline, Surface, Heading, Text, Button, Badge, Field, TextareaField, EmptyState | Isolated, prop-driven |
-| Navigation | ProductShell | Isolated shell preview |
-| Availability | AvailabilitySlotCard, AvailabilityCalendar, AvailabilityEditor | Isolated; availability API exists, no page binding yet |
+| Navigation | ProductShell | Reused in the real Calendar |
+| Availability | AvailabilitySlotCard, AvailabilityCalendar, AvailabilityEditor, AvailabilityForm | Isolated examples and live Calendar binding |
 | Operations | SchedulingNotice, AvailabilityReleaseSummary, BookingSummaryCard | Isolated previews; release and booking endpoints not built |
 | Teaching day | TodayTimeline, LessonContextCard | Isolated preview data |
 | Debrief | DebriefComposer | Isolated preview data; backend not built |
@@ -24,4 +24,4 @@ The component lab at `/component-lab` is the visual inventory. It is separate fr
 
 ## Next component slices before pages
 
-As backend workflows are built and approved, extend the lab with real state variants: loading, validation, conflict, warning, empty, and success. Booking and lesson-context components need a confirmed data contract before they are wired to APIs. Compose signed-in routes after those contracts and their tests exist; avoid suggesting the current lab is a product dashboard.
+As backend workflows are built and approved, extend the lab with real state variants: loading, validation, conflict, warning, empty, and success. Booking and lesson-context components need a confirmed data contract before they are wired to APIs. Compose real routes after those contracts and their tests exist; avoid suggesting the current lab is a product dashboard.

@@ -92,7 +92,7 @@ export function availabilityRoutes(dependencies: AvailabilityRouteDependencies) 
 
         const currentTime = dependencies.now?.() ?? new Date();
         const { trialEndsAt, paidThrough } = authentication.session;
-        if ((!trialEndsAt || trialEndsAt <= currentTime) && (!paidThrough || paidThrough <= currentTime)) {
+        if (!authentication.session.testingWorkspace && (!trialEndsAt || trialEndsAt <= currentTime) && (!paidThrough || paidThrough <= currentTime)) {
           return problem(403, "trial_expired", "The trial has ended. Your availability remains available to view and export.");
         }
 

@@ -15,7 +15,7 @@ const sections: { id: Section; label: string }[] = [
   { id: "faq", label: "FAQ" },
 ];
 
-export function SiteHeader() {
+export function SiteHeader({ testingWorkspace = false }: { testingWorkspace?: boolean }) {
   const [active, setActive] = useState<Section>("product");
 
   useEffect(() => {
@@ -61,8 +61,14 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="header-actions">
-          <Button render={<Link href="/sign-in" />} nativeButton={false} variant="neutral" size="sm">Sign in</Button>
-          <Button render={<Link href="/get-started" />} nativeButton={false} size="sm">Start free trial <ArrowRight /></Button>
+          {testingWorkspace ? (
+            <Button render={<Link href="/calendar" />} nativeButton={false} size="sm">Open calendar <ArrowRight /></Button>
+          ) : (
+            <>
+              <Button render={<Link href="/sign-in" />} nativeButton={false} variant="neutral" size="sm">Sign in</Button>
+              <Button render={<Link href="/get-started" />} nativeButton={false} size="sm">Start free trial <ArrowRight /></Button>
+            </>
+          )}
         </div>
       </div>
     </header>

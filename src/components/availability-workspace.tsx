@@ -16,25 +16,27 @@ function displayTime(date: Date) {
   return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
-export function AvailabilityWorkspace({ trialEndsAt, paidThrough, renderedAt, initialDate }: {
+export function AvailabilityWorkspace({ trialEndsAt, paidThrough, renderedAt, initialDate, testingWorkspace }: {
   trialEndsAt: string | null;
   paidThrough: string | null;
   renderedAt: string;
   initialDate: string;
+  testingWorkspace: boolean;
 }) {
   const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } }));
-  return <QueryClientProvider client={queryClient}><AvailabilityWorkspaceContent trialEndsAt={trialEndsAt} paidThrough={paidThrough} renderedAt={renderedAt} initialDate={initialDate} /></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><AvailabilityWorkspaceContent trialEndsAt={trialEndsAt} paidThrough={paidThrough} renderedAt={renderedAt} initialDate={initialDate} testingWorkspace={testingWorkspace} /></QueryClientProvider>;
 }
 
-function AvailabilityWorkspaceContent({ trialEndsAt, paidThrough, renderedAt, initialDate }: {
+function AvailabilityWorkspaceContent({ trialEndsAt, paidThrough, renderedAt, initialDate, testingWorkspace }: {
   trialEndsAt: string | null;
   paidThrough: string | null;
   renderedAt: string;
   initialDate: string;
+  testingWorkspace: boolean;
 }) {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(`${initialDate}T12:00:00`)));
   const queryClient = useQueryClient();
-  const active = (trialEndsAt !== null && new Date(trialEndsAt) > new Date(renderedAt)) ||
+  const active = testingWorkspace || (trialEndsAt !== null && new Date(trialEndsAt) > new Date(renderedAt)) ||
     (paidThrough !== null && new Date(paidThrough) > new Date(renderedAt));
 
   const weekEnd = useMemo(() => {
@@ -104,7 +106,7 @@ function AvailabilityWorkspaceContent({ trialEndsAt, paidThrough, renderedAt, in
 
   return (
     <Stack gap="5">
-      <TrialNotice endsAt={trialEndsAt} paidThrough={paidThrough} now={renderedAt} />
+      {!testingWorkspace && <TrialNotice endsAt={trialEndsAt} paidThrough={paidThrough} now={renderedAt} />}
       <Inline gap="3">
         <Button type="button" variant="surface" onClick={() => moveWeek(-1)}>Previous week</Button>
         <Button type="button" variant="surface" onClick={() => setWeekStart(startOfWeek(new Date()))}>This week</Button>

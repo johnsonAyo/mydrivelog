@@ -42,8 +42,7 @@ export default function ComponentLab() {
         description="This is a visual component lab, not a live instructor workspace. Calendar, lesson, and debrief examples below use sample data; only availability has a migrated API at this milestone."
       />
       <Inline>
-        <a data-dt="button" href="/preview/today">View Today preview</a>
-        <a data-dt="button" data-variant="surface" href="/preview/calendar">View Calendar preview</a>
+        <a data-dt="button" href="/calendar">Open the live Calendar</a>
       </Inline>
 
       <ShowcaseSection id="foundation" title="Foundations" description="The same paper, ink, restrained green, and plate-yellow action system used by the landing page.">

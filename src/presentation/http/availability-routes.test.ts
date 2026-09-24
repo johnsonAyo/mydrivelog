@@ -18,6 +18,34 @@ const activeSession: SessionResolver = {
 };
 
 describe("availability HTTP contract", () => {
+  it("creates and lists a slot in the configured test workspace without a login cookie", async () => {
+    const saved: Array<{ id: string; workspaceId: string; startsAt: Date; endsAt: Date; status: "open" }> = [];
+    const availability = repositoryStub({
+      insert: vi.fn(async (input) => {
+        const slot = { id: "slot-test", status: "open" as const, ...input };
+        saved.push(slot);
+        return { ok: true as const, slot };
+      }),
+    }, {
+      list: vi.fn(async () => saved),
+    });
+    const routes = availabilityRoutes({
+      sessions: { resolve: vi.fn(async () => ({
+        identityId: "test-instructor", workspaceId: "test-workspace", workspaceStatus: "active" as const,
+        trialEndsAt: null, paidThrough: null, testingWorkspace: true as const,
+      })) },
+      availability,
+    });
+    const created = await routes.create(new NextRequest("http://localhost/api/v1/availability", {
+      method: "POST",
+      body: JSON.stringify({ startsAt: "2026-10-05T09:00:00.000Z" }),
+    }));
+    const listed = await routes.list(new NextRequest("http://localhost/api/v1/availability?from=2026-10-05T00%3A00%3A00.000Z&to=2026-10-12T00%3A00%3A00.000Z"));
+
+    expect(created.status).toBe(201);
+    expect(listed.status).toBe(200);
+    await expect(listed.json()).resolves.toMatchObject({ data: [{ id: "slot-test", startsAt: "2026-10-05T09:00:00.000Z" }] });
+  });
   it("keeps reads available but blocks writes after an unpaid trial expires", async () => {
     const sessions: SessionResolver = {
       resolve: vi.fn(async () => ({
@@ -153,7 +181,7 @@ describe("availability HTTP contract", () => {
 
 function repositoryStub(
   overrides: Partial<AvailabilityTransaction> = {},
-  repositoryOverrides: Partial<Pick<AvailabilityRepository, "exportAll">> = {},
+  repositoryOverrides: Partial<Pick<AvailabilityRepository, "exportAll" | "list">> = {},
 ): AvailabilityRepository {
   const transaction = {
     getSchedulingPolicy: vi.fn(async () => ({

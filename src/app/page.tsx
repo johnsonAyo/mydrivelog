@@ -65,9 +65,11 @@ function ActionLink({ children, href, variant = "default" }: { children: React.R
 }
 
 export default function Home() {
+  const testingWorkspace = process.env.NODE_ENV === "development" && Boolean(process.env.DEV_WORKSPACE_ID);
+  const actionHref = testingWorkspace ? "/calendar" : "/get-started";
   return (
     <main className="landing-page">
-      <SiteHeader />
+      <SiteHeader testingWorkspace={testingWorkspace} />
 
       <section className="hero section" id="top">
         <div className="shell hero-grid">
@@ -78,7 +80,7 @@ export default function Home() {
               Plan your week, release lesson slots, manage bookings, and complete debriefs from one focused workspace.
             </p>
             <div className="hero-actions">
-              <ActionLink href="/get-started">Start free trial <ArrowRight /></ActionLink>
+              <ActionLink href={actionHref}>{testingWorkspace ? "Open calendar" : "Start free trial"} <ArrowRight /></ActionLink>
             </div>
             <div className="trust-line">
               <span><Check /> Instructor-first</span>
@@ -116,7 +118,7 @@ export default function Home() {
             <p className="section-lede">
               When you teach a full week of different people, the next lesson should not begin with you rebuilding the last one from memory.
             </p>
-            <ActionLink href="/get-started">Keep lessons connected <ArrowRight /></ActionLink>
+            <ActionLink href={actionHref}>Keep lessons connected <ArrowRight /></ActionLink>
           </div>
           <Card className="continuity-card">
             <CardContent>
@@ -213,7 +215,7 @@ export default function Home() {
             <p>Bring availability, bookings, and lesson continuity into one focused place.</p>
           </div>
           <div className="closing-actions">
-            <ActionLink href="/get-started">Start free trial <ArrowRight /></ActionLink>
+            <ActionLink href={actionHref}>{testingWorkspace ? "Open calendar" : "Start free trial"} <ArrowRight /></ActionLink>
           </div>
         </div>
       </section>
