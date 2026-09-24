@@ -6,14 +6,12 @@ DriveTrack is an instructor-first lesson planning product. This repository combi
 
 ```bash
 npm install
-cp .env.example .env.local
-npm run db:migrate
 npm run dev
 ```
 
-Requires Node.js 22 or later and PostgreSQL for database-backed routes. Open `http://localhost:3000` for the landing page and `/component-lab` for isolated product components. The lab uses sample data and is not an authenticated workspace. `/api/v1/health` does not require a database; readiness and availability routes do.
+Requires Node.js 22 or later and PostgreSQL for database-backed routes. Open `http://localhost:3000` for the landing page, `/preview/today` and `/preview/calendar` for complete product-screen previews, and `/component-lab` for isolated components. These preview routes use sample data and need no authentication, email provider, or database; their controls do not save changes. `/api/v1/health` does not require a database; readiness and availability routes do.
 
-To use the public trial flow, set `APP_BASE_URL`, `RESEND_API_KEY`, and `ACCESS_EMAIL_FROM` in `.env.local`. The sender address must be authorised for the configured Resend account. Start at `/get-started`; the email link creates a Solo workspace and starts its 14-day trial on first verification. Returning instructors use `/sign-in`. `/calendar` is the first working instructor screen: it reads and creates availability, and exports all availability as JSON. The trial expires into read-only access; it does not delete records.
+The authentication provider is not finalised. The existing email-link route is provisional and is **not required to review the design**. If testing that route, copy `.env.example` to `.env.local`, configure PostgreSQL, run `npm run db:migrate`, and set `APP_BASE_URL`, `RESEND_API_KEY`, and `ACCESS_EMAIL_FROM`; the sender address must be authorised for the configured Resend account. Start at `/get-started`; the email link creates a Solo workspace and starts its 14-day trial on first verification. Returning instructors use `/sign-in`. `/calendar` is the protected, database-backed instructor screen: it reads and creates availability, and exports all availability as JSON. The trial expires into read-only access; it does not delete records.
 
 Subscription checkout, release/booking/debrief endpoints, and the corresponding working pages are not implemented yet. The £24/month Solo price and self-serve checkout are agreed product decisions, not live billing features. Do not launch the trial publicly without completing checkout and production email/abuse controls.
 

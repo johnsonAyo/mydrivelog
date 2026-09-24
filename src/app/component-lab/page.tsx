@@ -25,40 +25,14 @@ import {
   Text,
   TrialNotice,
   TodayTimeline,
-  type CalendarSlot,
-  type TimelineLesson,
 } from "@drivetrack/ui";
+import { previewCalendarDays, previewCalendarSlots, previewLessons } from "@/components/preview/preview-data";
 
 export const metadata: Metadata = {
   title: "Component lab — DriveTrack",
   description: "Isolated DriveTrack product components. Preview data only; not a working instructor workspace.",
   robots: { index: false, follow: false },
 };
-
-const calendarDays = [
-  { label: "Monday", date: "21" },
-  { label: "Tuesday", date: "22" },
-  { label: "Wednesday", date: "23" },
-  { label: "Thursday", date: "24" },
-  { label: "Friday", date: "25" },
-  { label: "Saturday", date: "26" },
-  { label: "Sunday", date: "27" },
-];
-
-const slots: CalendarSlot[] = [
-  { id: "monday-am", day: 0, startsAt: "09:00", endsAt: "11:00", label: "Available lesson", state: "open" },
-  { id: "tuesday-am", day: 1, startsAt: "09:00", endsAt: "11:00", label: "Maya A.", state: "booked" },
-  { id: "tuesday-pm", day: 1, startsAt: "14:00", endsAt: "16:00", label: "Open lesson", state: "open" },
-  { id: "wednesday-am", day: 2, startsAt: "10:00", endsAt: "12:00", label: "Owen P.", state: "awaiting-debrief" },
-  { id: "thursday-pm", day: 3, startsAt: "13:00", endsAt: "15:00", label: "Draft lesson slot", state: "draft" },
-  { id: "friday-am", day: 4, startsAt: "09:30", endsAt: "11:30", label: "Sofia R.", state: "completed" },
-];
-
-const lessons: TimelineLesson[] = [
-  { id: "maya", time: "09:00", name: "Maya A.", detail: "Roundabouts · Lesson 8", state: "upcoming" },
-  { id: "owen", time: "11:30", name: "Owen P.", detail: "Dual carriageways · Lesson 12", state: "awaiting-debrief" },
-  { id: "sofia", time: "14:00", name: "Sofia R.", detail: "Bay parking · Lesson 5", state: "completed" },
-];
 
 export default function ComponentLab() {
   return (
@@ -67,6 +41,10 @@ export default function ComponentLab() {
         title="Build the pieces first."
         description="This is a visual component lab, not a live instructor workspace. Calendar, lesson, and debrief examples below use sample data; only availability has a migrated API at this milestone."
       />
+      <Inline>
+        <a data-dt="button" href="/preview/today">View Today preview</a>
+        <a data-dt="button" data-variant="surface" href="/preview/calendar">View Calendar preview</a>
+      </Inline>
 
       <ShowcaseSection id="foundation" title="Foundations" description="The same paper, ink, restrained green, and plate-yellow action system used by the landing page.">
         <Surface>
@@ -94,7 +72,7 @@ export default function ComponentLab() {
 
       <ShowcaseSection id="today" title="A teaching day" description="Lesson status and next-session context are separate, reusable components.">
         <ShowcaseGrid>
-          <TodayTimeline lessons={lessons} />
+          <TodayTimeline lessons={previewLessons} />
           <LessonContextCard
             name="Maya"
             lastLesson="Roundabout positioning; mirror routine was consistent."
@@ -106,9 +84,9 @@ export default function ComponentLab() {
       </ShowcaseSection>
 
       <ShowcaseSection id="calendar" title="Calendar and availability" description="State is expressed by label, border, and surface—not colour alone. The editor is isolated from the calendar layout.">
-        <AvailabilityCalendar title="21–27 September" days={calendarDays} slots={slots} />
+        <AvailabilityCalendar title="21–27 September" days={previewCalendarDays} slots={previewCalendarSlots} />
         <ShowcaseGrid>
-          <AvailabilitySlotCard slot={slots[0]} />
+          <AvailabilitySlotCard slot={previewCalendarSlots[0]} />
           <AvailabilityEditor
             startValue="2026-09-24T09:00"
             endValue="2026-09-24T11:00"
@@ -164,7 +142,7 @@ export default function ComponentLab() {
           identity="Independent instructor workspace"
           actions={<Button disabled>Add availability</Button>}
         >
-          <TodayTimeline lessons={lessons} />
+          <TodayTimeline lessons={previewLessons} />
         </ProductShell>
       </ShowcaseSection>
     </Showcase>
