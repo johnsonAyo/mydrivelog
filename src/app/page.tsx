@@ -14,7 +14,7 @@ import {
 import { Faq } from "@/components/faq";
 import { Wordmark } from "@/components/brand-mark";
 import { ProductPreview } from "@/components/product-preview";
-import { RouteAccent } from "@/components/route-accent";
+import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -61,26 +61,13 @@ const features = [
 ];
 
 function ActionLink({ children, href, variant = "default" }: { children: React.ReactNode; href: string; variant?: "default" | "neutral" }) {
-  return <Button render={<Link href={href} />} variant={variant}>{children}</Button>;
+  return <Button render={<Link href={href} />} nativeButton={false} variant={variant}>{children}</Button>;
 }
 
 export default function Home() {
   return (
-    <main>
-      <header className="site-header">
-        <div className="shell header-inner">
-          <Link href="#top" aria-label="DriveTrack home"><Wordmark /></Link>
-          <nav aria-label="Main navigation">
-            <Link href="#product">Product</Link>
-            <Link href="#workflow">How it works</Link>
-            <Link href="#faq">FAQ</Link>
-          </nav>
-          <div className="header-actions">
-            <Button render={<Link href="#signin" />} variant="neutral" size="sm">Sign in</Button>
-            <Button render={<Link href="#start" />} size="sm">Get started <ArrowRight /></Button>
-          </div>
-        </div>
-      </header>
+    <main className="landing-page">
+      <SiteHeader />
 
       <section className="hero section" id="top">
         <div className="shell hero-grid">
@@ -101,7 +88,6 @@ export default function Home() {
             </div>
           </div>
           <div className="hero-side">
-            <RouteAccent />
             <div className="hero-note">
               <span>Built around the work between lessons.</span>
               <p>Less reconstructing. More purposeful teaching.</p>
