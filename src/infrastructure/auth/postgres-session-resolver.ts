@@ -13,6 +13,8 @@ export const postgresSessionResolver: SessionResolver = {
         identityId: instructorSessions.identityId,
         workspaceId: workspaces.id,
         workspaceStatus: workspaces.status,
+        trialEndsAt: workspaces.trialEndsAt,
+        paidThrough: workspaces.paidThrough,
       })
       .from(instructorSessions)
       .innerJoin(workspaces, eq(workspaces.ownerIdentityId, instructorSessions.identityId))

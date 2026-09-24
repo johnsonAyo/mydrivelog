@@ -25,4 +25,10 @@ export interface AvailabilityRepository {
     work: (transaction: AvailabilityTransaction) => Promise<TResult>,
   ): Promise<TResult>;
   list(workspaceId: string, from: Date, to: Date): Promise<readonly AvailabilitySlot[]>;
+  exportAll(workspaceId: string): Promise<readonly {
+    id: string;
+    startsAt: Date;
+    endsAt: Date;
+    status: "open" | "booked" | "withdrawn";
+  }[]>;
 }

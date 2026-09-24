@@ -119,6 +119,20 @@ export const postgresAvailabilityRepository: AvailabilityRepository = {
 
     return rows.map((row) => ({ ...row, status: "open" as const }));
   },
+
+  async exportAll(workspaceId) {
+    const { db } = getDatabase();
+    return db
+      .select({
+        id: availabilitySlots.id,
+        startsAt: availabilitySlots.startsAt,
+        endsAt: availabilitySlots.endsAt,
+        status: availabilitySlots.status,
+      })
+      .from(availabilitySlots)
+      .where(eq(availabilitySlots.workspaceId, workspaceId))
+      .orderBy(asc(availabilitySlots.startsAt));
+  },
 };
 
 function isSerializationFailure(error: unknown): boolean {

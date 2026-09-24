@@ -3,6 +3,7 @@ import { CalendarDays, Clock3 } from "lucide-react";
 import {
   AvailabilityCalendar,
   AvailabilityEditor,
+  AvailabilityForm,
   AvailabilityReleaseSummary,
   AvailabilitySlotCard,
   Badge,
@@ -10,6 +11,7 @@ import {
   Button,
   DebriefComposer,
   EmptyState,
+  EmailAccessForm,
   Inline,
   LessonContextCard,
   ProductShell,
@@ -21,6 +23,7 @@ import {
   Stack,
   Surface,
   Text,
+  TrialNotice,
   TodayTimeline,
   type CalendarSlot,
   type TimelineLesson,
@@ -79,6 +82,16 @@ export default function ComponentLab() {
         </Surface>
       </ShowcaseSection>
 
+      <ShowcaseSection id="access" title="Access and trial" description="Isolated signup and entitlement states. Forms are disabled in this lab; the live flow lives at Get started.">
+        <ShowcaseGrid>
+          <EmailAccessForm disabled />
+          <Stack gap="4">
+            <TrialNotice endsAt="2026-10-08T12:00:00.000Z" paidThrough={null} now="2026-09-24T12:00:00.000Z" />
+            <TrialNotice endsAt="2026-09-20T12:00:00.000Z" paidThrough={null} now="2026-09-24T12:00:00.000Z" />
+          </Stack>
+        </ShowcaseGrid>
+      </ShowcaseSection>
+
       <ShowcaseSection id="today" title="A teaching day" description="Lesson status and next-session context are separate, reusable components.">
         <ShowcaseGrid>
           <TodayTimeline lessons={lessons} />
@@ -101,6 +114,7 @@ export default function ComponentLab() {
             endValue="2026-09-24T11:00"
             footer={<Button disabled>Create slot</Button>}
           />
+          <AvailabilityForm disabled />
         </ShowcaseGrid>
       </ShowcaseSection>
 

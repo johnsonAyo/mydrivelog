@@ -1,6 +1,6 @@
 # DriveTrack — Product and Engineering Specification
 
-> **Historical discovery draft.** This document preserves earlier route and workflow detail but is not the implementation authority where it conflicts with [confirmed product decisions](docs/PRODUCT_DECISIONS.md). In particular, do **not** build the roster or Students destination described below: there is no student-management module, student account, or payment flow. The current repository architecture and route implementation live in `docs/ARCHITECTURE.md` and the source tree. Reconcile this draft before using any remaining route-level requirements as build tickets.
+> **Historical discovery draft.** This document preserves earlier route and workflow detail but is not the implementation authority where it conflicts with [confirmed product decisions](docs/PRODUCT_DECISIONS.md). In particular, do **not** build the roster or Students destination described below: there is no student-management module or student account. The old prohibition on payments refers to student lesson payments; it has been superseded for DriveTrack subscription billing. The old invite-only pilot, no-trial, and no-checkout assumptions are also superseded by public Solo signup, a 14-day no-card trial, and planned self-serve subscription checkout. The current repository architecture and route implementation live in `docs/ARCHITECTURE.md` and the source tree. Reconcile this draft before using any remaining route-level requirements as build tickets.
 
 **Internal codename:** `gbot`
 **Product name:** DriveTrack

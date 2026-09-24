@@ -13,6 +13,10 @@ npm run dev
 
 Requires Node.js 22 or later and PostgreSQL for database-backed routes. Open `http://localhost:3000` for the landing page and `/component-lab` for isolated product components. The lab uses sample data and is not an authenticated workspace. `/api/v1/health` does not require a database; readiness and availability routes do.
 
+To use the public trial flow, set `APP_BASE_URL`, `RESEND_API_KEY`, and `ACCESS_EMAIL_FROM` in `.env.local`. The sender address must be authorised for the configured Resend account. Start at `/get-started`; the email link creates a Solo workspace and starts its 14-day trial on first verification. Returning instructors use `/sign-in`. `/calendar` is the first working instructor screen: it reads and creates availability, and exports all availability as JSON. The trial expires into read-only access; it does not delete records.
+
+Subscription checkout, release/booking/debrief endpoints, and the corresponding working pages are not implemented yet. The £24/month Solo price and self-serve checkout are agreed product decisions, not live billing features. Do not launch the trial publicly without completing checkout and production email/abuse controls.
+
 ## Verify
 
 ```bash
@@ -27,7 +31,7 @@ This runs stylesheet and product-style boundary checks, type-checking, backend t
 - `packages/tokens` — shared paper, ink, green, yellow, spacing, and shadow tokens.
 - `packages/ui` — prop-driven product primitives and isolated calendar, lesson, and debrief components.
 - `src/app/component-lab` — visual inventory with clearly marked sample data.
-- `src/app/api`, `src/presentation`, `src/application`, `src/domain`, `src/infrastructure` — migrated availability vertical slice, preserving clean-architecture boundaries.
+- `src/app/api`, `src/presentation`, `src/application`, `src/domain`, `src/infrastructure` — availability, access-link authentication, and trial entitlement slices, preserving clean-architecture boundaries.
 - `drizzle` — copied database migration and schema history.
 
 Read [the migration record](docs/MIGRATION.md), [component system](docs/COMPONENT_SYSTEM.md), [architecture](docs/ARCHITECTURE.md), and [product decisions](docs/PRODUCT_DECISIONS.md) before extending the product. `SPEC.md` contains earlier discovery context; confirmed decisions take precedence where they differ.

@@ -23,10 +23,33 @@ const rangeSchema = z.object({
 type AvailabilityRouteDependencies = {
   readonly sessions: SessionResolver;
   readonly availability: AvailabilityRepository;
+  readonly now?: () => Date;
 };
 
 export function availabilityRoutes(dependencies: AvailabilityRouteDependencies) {
   return {
+    async export(request: NextRequest) {
+      try {
+        const authentication = await authenticateRequest(request, dependencies.sessions);
+        if (!authentication.ok) return authenticationProblem(authentication.reason);
+        const rows = await dependencies.availability.exportAll(authentication.session.workspaceId);
+        const response = NextResponse.json({
+          version: 1,
+          exportedAt: (dependencies.now?.() ?? new Date()).toISOString(),
+          availability: rows.map((row) => ({
+            id: row.id,
+            startsAt: row.startsAt.toISOString(),
+            endsAt: row.endsAt.toISOString(),
+            status: row.status,
+          })),
+        });
+        response.headers.set("Content-Disposition", 'attachment; filename="drivetrack-availability.json"');
+        response.headers.set("Cache-Control", "private, no-store");
+        return response;
+      } catch {
+        return unexpectedAvailabilityProblem("listing");
+      }
+    },
     async list(request: NextRequest) {
       try {
         const authentication = await authenticateRequest(request, dependencies.sessions);
@@ -65,6 +88,12 @@ export function availabilityRoutes(dependencies: AvailabilityRouteDependencies) 
         const authentication = await authenticateRequest(request, dependencies.sessions);
         if (!authentication.ok) {
           return authenticationProblem(authentication.reason);
+        }
+
+        const currentTime = dependencies.now?.() ?? new Date();
+        const { trialEndsAt, paidThrough } = authentication.session;
+        if ((!trialEndsAt || trialEndsAt <= currentTime) && (!paidThrough || paidThrough <= currentTime)) {
+          return problem(403, "trial_expired", "The trial has ended. Your availability remains available to view and export.");
         }
 
         const payload = await request.json().catch(() => null);

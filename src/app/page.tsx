@@ -78,8 +78,7 @@ export default function Home() {
               Plan your week, release lesson slots, manage bookings, and complete debriefs from one focused workspace.
             </p>
             <div className="hero-actions">
-              <ActionLink href="#start">Get started <ArrowRight /></ActionLink>
-              <ActionLink href="#demo" variant="neutral">Book a demo</ActionLink>
+              <ActionLink href="/get-started">Start free trial <ArrowRight /></ActionLink>
             </div>
             <div className="trust-line">
               <span><Check /> Instructor-first</span>
@@ -117,7 +116,7 @@ export default function Home() {
             <p className="section-lede">
               When you teach a full week of different people, the next lesson should not begin with you rebuilding the last one from memory.
             </p>
-            <ActionLink href="#start">Keep lessons connected <ArrowRight /></ActionLink>
+            <ActionLink href="/get-started">Keep lessons connected <ArrowRight /></ActionLink>
           </div>
           <Card className="continuity-card">
             <CardContent>
@@ -213,14 +212,13 @@ export default function Home() {
             <h2>Run the week. Remember the learner.</h2>
             <p>Bring availability, bookings, and lesson continuity into one focused place.</p>
           </div>
-          <div className="closing-actions" id="demo">
-            <ActionLink href="#signin">Get started <ArrowRight /></ActionLink>
-            <ActionLink href="mailto:hello@drivetrack.uk" variant="neutral">Book a demo</ActionLink>
+          <div className="closing-actions">
+            <ActionLink href="/get-started">Start free trial <ArrowRight /></ActionLink>
           </div>
         </div>
       </section>
 
-      <footer className="site-footer" id="signin">
+      <footer className="site-footer">
         <div className="shell footer-inner">
           <Wordmark />
           <p>One focused workspace for independent driving instructors.</p>

@@ -12,10 +12,54 @@ const activeSession: SessionResolver = {
     identityId: "identity-1",
     workspaceId: "workspace-1",
     workspaceStatus: "active" as const,
+    trialEndsAt: new Date("2026-10-08T00:00:00.000Z"),
+    paidThrough: null,
   })),
 };
 
 describe("availability HTTP contract", () => {
+  it("keeps reads available but blocks writes after an unpaid trial expires", async () => {
+    const sessions: SessionResolver = {
+      resolve: vi.fn(async () => ({
+        identityId: "identity-1",
+        workspaceId: "workspace-1",
+        workspaceStatus: "active" as const,
+        trialEndsAt: new Date("2026-10-01T00:00:00.000Z"),
+        paidThrough: null,
+      })),
+    };
+    const availability = repositoryStub();
+    const routes = availabilityRoutes({ sessions, availability, now: () => new Date("2026-10-05T00:00:00.000Z") });
+    const headers = { cookie: "drivetrack_session=opaque-session-token" };
+    const read = await routes.list(new NextRequest("http://localhost/api/v1/availability?from=2026-10-05T00%3A00%3A00.000Z&to=2026-10-12T00%3A00%3A00.000Z", { headers }));
+    const write = await routes.create(new NextRequest("http://localhost/api/v1/availability", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ startsAt: "2026-10-05T09:00:00.000Z" }),
+    }));
+
+    expect(read.status).toBe(200);
+    expect(write.status).toBe(403);
+    await expect(write.json()).resolves.toMatchObject({ code: "trial_expired" });
+  });
+
+  it("lets an expired instructor export availability", async () => {
+    const routes = availabilityRoutes({
+      sessions: { resolve: vi.fn(async () => ({
+        identityId: "identity-1", workspaceId: "workspace-1", workspaceStatus: "active" as const,
+        trialEndsAt: new Date("2026-10-01T00:00:00.000Z"), paidThrough: null,
+      })) },
+      availability: repositoryStub({}, { exportAll: vi.fn(async () => [{
+        id: "slot-1", startsAt: new Date("2026-10-05T09:00:00.000Z"), endsAt: new Date("2026-10-05T11:00:00.000Z"), status: "open" as const,
+      }]) }),
+    });
+    const response = await routes.export(new NextRequest("http://localhost/api/v1/availability/export", {
+      headers: { cookie: "drivetrack_session=opaque-session-token" },
+    }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-disposition")).toContain("attachment");
+    await expect(response.json()).resolves.toMatchObject({ availability: [{ id: "slot-1" }] });
+  });
   it("does not accept an unauthenticated write", async () => {
     const routes = availabilityRoutes({
       sessions: { resolve: vi.fn(async () => null) },
@@ -109,6 +153,7 @@ describe("availability HTTP contract", () => {
 
 function repositoryStub(
   overrides: Partial<AvailabilityTransaction> = {},
+  repositoryOverrides: Partial<Pick<AvailabilityRepository, "exportAll">> = {},
 ): AvailabilityRepository {
   const transaction = {
     getSchedulingPolicy: vi.fn(async () => ({
@@ -126,5 +171,7 @@ function repositoryStub(
   return {
     transaction: vi.fn(async (work) => work(transaction)),
     list: vi.fn(async () => []),
+    exportAll: vi.fn(async () => []),
+    ...repositoryOverrides,
   };
 }

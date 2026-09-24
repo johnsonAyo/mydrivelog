@@ -61,8 +61,8 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="header-actions">
-          <Button render={<Link href="#signin" />} nativeButton={false} variant="neutral" size="sm">Sign in</Button>
-          <Button render={<Link href="#start" />} nativeButton={false} size="sm">Get started <ArrowRight /></Button>
+          <Button render={<Link href="/sign-in" />} nativeButton={false} variant="neutral" size="sm">Sign in</Button>
+          <Button render={<Link href="/get-started" />} nativeButton={false} size="sm">Start free trial <ArrowRight /></Button>
         </div>
       </div>
     </header>
