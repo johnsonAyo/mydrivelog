@@ -4,8 +4,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Badge, Button, EmptyState, Field, Heading, SelectField, Text } from "./primitives";
 import { LessonTimePicker, lessonTimeIssue } from "./lesson-time-picker";
 
-export type CollectionSummary = { id: string; name: string; status: "draft" | "live"; updatedAt: string; slotCount: number; openCount: number; bookingCount: number };
-export type CollectionDetail = { id: string; name: string; status: "draft" | "live"; slots: CollectionSlot[]; invitations: CollectionInvitation[]; bookings: CollectionBooking[]; generalToken: string | null };
+export type CollectionSummary = { id: string; name: string; weekStart: string | null; status: "draft" | "live"; updatedAt: string; slotCount: number; openCount: number; bookingCount: number };
+export type CollectionDetail = { id: string; name: string; weekStart: string | null; status: "draft" | "live"; slots: CollectionSlot[]; invitations: CollectionInvitation[]; bookings: CollectionBooking[]; generalToken: string | null };
+export type CollectionWeek = { weekStart: string; label: string; collection: CollectionSummary | null; isPast: boolean };
 export type CollectionSlot = { id: string; startsAt: string; endsAt: string; status: "private" | "open" | "booked" | "closed" };
 export type CollectionInvitation = { id: string; name: string; email: string; emailStatus: string };
 export type CollectionBooking = { id: string; slotId: string; name: string; email: string; startsAt: string; endsAt: string; confirmationEmailStatus: string };
@@ -27,32 +28,28 @@ function displayDate(value: string) {
   return new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date(value));
 }
 
-export function CollectionChooser({ collections, selectedId, defaultName, onCreate, onSelect, busy, error }: {
-  collections: readonly CollectionSummary[]; selectedId: string | null; defaultName: string;
-  onCreate: (name: string) => Promise<void>; onSelect: (id: string) => void; busy: boolean; error: string | null;
+function lastDayOfWeek(weekStart: string) {
+  const date = new Date(`${weekStart}T12:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + 6);
+  return date.toISOString().slice(0, 10);
+}
+
+export function CollectionChooser({ weeks, earlierLists, monthLabel, selectedId, onPreviousMonth, onNextMonth, onCreate, onSelect, busy, error }: {
+  weeks: readonly CollectionWeek[]; earlierLists: readonly CollectionSummary[]; monthLabel: string; selectedId: string | null;
+  onPreviousMonth: () => void; onNextMonth: () => void; onCreate: (weekStart: string) => Promise<void>; onSelect: (id: string) => void; busy: boolean; error: string | null;
 }) {
-  const [name, setName] = useState(defaultName);
-  async function create(event: FormEvent) {
-    event.preventDefault();
-    if (name.trim().length < 2) return;
-    await onCreate(name.trim());
-    setName(defaultName);
-  }
-  const newListControls = <>
-    <form data-dt="collection-new-form" onSubmit={(event) => void create(event)}>
-      <Field id="collection-name" label="Name this list" value={name} onChange={(event) => setName(event.target.value)} placeholder="Week of 28 September" maxLength={100} />
-      <Button type="submit" disabled={busy || name.trim().length < 2}>Create draft</Button>
-    </form>
-    {error && <p data-dt="collection-feedback" role="alert">{error}</p>}
-  </>;
   return <section data-dt="collection-chooser">
-    <div data-dt="collection-section-heading"><div><Text variant="eyebrow">YOUR AVAILABILITY</Text><Heading as="h2" size="panel">{collections.length ? "Your time lists" : "Start with a time list"}</Heading><Text variant="muted">Build each list in stages. Nothing is visible until you share it.</Text></div></div>
-    {collections.length === 0 && newListControls}
-    {collections.length > 0 && <div data-dt="collection-list" aria-label="Availability lists">{collections.map((collection) => <button key={collection.id} type="button" data-dt="collection-list-item" aria-current={selectedId === collection.id ? "true" : undefined} onClick={() => onSelect(collection.id)}>
-      <span><strong>{collection.name}</strong><small>{collection.slotCount} {collection.slotCount === 1 ? "time" : "times"} · {collection.bookingCount} booked</small></span>
-      <Badge tone={collection.status === "live" ? "success" : "neutral"}>{collection.status === "live" ? "Shared" : "Draft"}</Badge>
-    </button>)}</div>}
-    {collections.length > 0 && <details data-dt="collection-create-more"><summary>Create another list</summary>{newListControls}</details>}
+    <div data-dt="collection-section-heading"><div><Text variant="eyebrow">YOUR AVAILABILITY</Text><Heading as="h2" size="panel">Plan by week</Heading><Text variant="muted">Pick a week, add your lesson times, and share when you are ready. You can return to any draft.</Text></div></div>
+    <div data-dt="collection-month-nav"><Button type="button" variant="ghost" onClick={onPreviousMonth} aria-label="Previous month">←</Button><strong>{monthLabel}</strong><Button type="button" variant="ghost" onClick={onNextMonth} aria-label="Next month">→</Button></div>
+    <div data-dt="collection-list" aria-label="Weeks in this month">{weeks.map((week, index) => {
+      const collection = week.collection;
+      return <button key={week.weekStart} type="button" data-dt="collection-list-item" aria-current={collection && selectedId === collection.id ? "true" : undefined} disabled={!collection && (busy || week.isPast)} onClick={() => collection ? onSelect(collection.id) : void onCreate(week.weekStart)}>
+        <span><strong>Week {index + 1} · {week.label}</strong><small>{collection ? `${collection.slotCount} ${collection.slotCount === 1 ? "time" : "times"} · ${collection.bookingCount} booked` : week.isPast ? "No list for this week" : "No times added yet"}</small></span>
+        {collection ? <Badge tone={collection.status === "live" ? "success" : "neutral"}>{collection.status === "live" ? "Shared" : "Draft"}</Badge> : <span data-dt="collection-week-action">{week.isPast ? "Past week" : "Plan week →"}</span>}
+      </button>;
+    })}</div>
+    {error && <p data-dt="collection-feedback" role="alert">{error}</p>}
+    {earlierLists.length > 0 && <details data-dt="collection-create-more"><summary>Earlier lists ({earlierLists.length})</summary><div data-dt="collection-list" aria-label="Earlier availability lists">{earlierLists.map((collection) => <button key={collection.id} type="button" data-dt="collection-list-item" aria-current={selectedId === collection.id ? "true" : undefined} onClick={() => onSelect(collection.id)}><span><strong>{collection.name}</strong><small>{collection.slotCount} {collection.slotCount === 1 ? "time" : "times"} · {collection.bookingCount} booked</small></span><Badge tone={collection.status === "live" ? "success" : "neutral"}>{collection.status === "live" ? "Shared" : "Draft"}</Badge></button>)}</div></details>}
   </section>;
 }
 
@@ -107,7 +104,7 @@ export function CollectionEditor({ collection, contacts, defaultDuration, defaul
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!date || !start) return;
-    const issue = lessonTimeIssue({ date, start, end, defaultDuration }, new Date());
+    const issue = lessonTimeIssue({ date, start, end, defaultDuration, weekStart: collection.weekStart }, new Date());
     if (issue) { setLocalError(issue); return; }
     setLocalError(null);
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
@@ -135,14 +132,17 @@ export function CollectionEditor({ collection, contacts, defaultDuration, defaul
   const link = generalUrl ?? (collection.generalToken ? `/book/availability/${collection.generalToken}` : null);
   const hasSharableTimes = collection.slots.some((slot) => (slot.status === "open" || (collection.status === "draft" && slot.status === "private")) && new Date(slot.startsAt) > new Date());
   const renewingInvitation = collection.invitations.some((invite) => invite.email.toLowerCase() === inviteEmail.trim().toLowerCase());
-  const timeIssue = now ? lessonTimeIssue({ date, start, end, defaultDuration }, now) : null;
+  const timeIssue = now ? lessonTimeIssue({ date, start, end, defaultDuration, weekStart: collection.weekStart }, now) : null;
+  const today = now ? localDateTime(now.toISOString()).date : undefined;
+  const rangeMin = collection.weekStart && today ? (collection.weekStart > today ? collection.weekStart : today) : collection.weekStart ?? today;
+  const rangeMax = collection.weekStart ? lastDayOfWeek(collection.weekStart) : undefined;
 
   return <div data-dt="collection-workspace">
     <section data-dt="collection-panel">
       <header data-dt="collection-section-heading"><div><Text variant="eyebrow">{collection.status === "live" ? "SHARED AVAILABILITY" : "PRIVATE DRAFT"}</Text><Heading as="h2" size="panel">{collection.name}</Heading><Text variant="muted">Add exact lesson times, just as you would write them in a message.</Text></div><Badge tone={collection.status === "live" ? "success" : "neutral"}>{collection.status === "live" ? "Shared" : "Draft"}</Badge></header>
       <form id="collection-time-form" data-dt="collection-time-form" onSubmit={(event) => void save(event)}>
         <div><Heading as="h3" size="small">{editingId ? "Edit lesson time" : collection.slots.length ? "Add another time" : "Add a lesson time"}</Heading><Text variant="muted">Each time becomes one lesson option when shared. Add 09:00–12:00, then add 13:00–17:00 on the same date. Your usual lesson length is {defaultDuration} minutes.</Text></div>
-        <LessonTimePicker date={date} start={start} end={end} defaultDuration={defaultDuration} now={now} onDateChange={(value) => { setDate(value); setLocalError(null); }} onStartChange={(value) => { moveStart(value); setLocalError(null); }} onEndChange={(value) => { setEnd(value); setLocalError(null); }} />
+        <LessonTimePicker date={date} start={start} end={end} defaultDuration={defaultDuration} weekStart={collection.weekStart} now={now} onDateChange={(value) => { setDate(value); setLocalError(null); }} onStartChange={(value) => { moveStart(value); setLocalError(null); }} onEndChange={(value) => { setEnd(value); setLocalError(null); }} />
         <div data-dt="collection-form-actions"><Button type="submit" disabled={busy || !date || !start || Boolean(timeIssue)}>{editingId ? "Save changes" : "Add time to list"}</Button>{!editingId && collection.status === "live" && <Button type="submit" variant="surface" value="open" disabled={busy || !date || !start || Boolean(timeIssue)}>Add and make bookable</Button>}{editingId && <Button type="button" variant="surface" onClick={() => resetForm()}>Cancel edit</Button>}</div>
       </form>
       {localError && <p data-dt="collection-feedback" role="alert">{localError}</p>}
@@ -161,7 +161,7 @@ export function CollectionEditor({ collection, contacts, defaultDuration, defaul
         {error && errorArea === "list" && <p data-dt="collection-feedback" role="alert">{error}</p>}
         {notice && noticeArea === "list" && <p data-dt="collection-feedback" role="status">{notice}</p>}
       </div>
-      <details data-dt="collection-generator"><summary>Or split a wider range into lesson times</summary><form onSubmit={(event) => { event.preventDefault(); void onGenerate({ date: rangeDate, from: rangeFrom, to: rangeTo, duration: rangeDuration, gap: rangeGap }); }}><Text variant="muted">For example, split 09:00–17:00 into {defaultDuration}-minute lessons with a {defaultGap}-minute gap. Edit any suggested time afterwards.</Text><div data-dt="collection-generator-fields"><Field id="range-date" label="Date" type="date" value={rangeDate} required onChange={(event) => setRangeDate(event.target.value)} /><Field id="range-from" label="From" type="time" value={rangeFrom} required onChange={(event) => setRangeFrom(event.target.value)} /><Field id="range-to" label="Until" type="time" value={rangeTo} required onChange={(event) => setRangeTo(event.target.value)} /><Field id="range-duration" label="Lesson minutes" type="number" min={15} max={480} value={rangeDuration} onChange={(event) => setRangeDuration(Number(event.target.value))} /><Field id="range-gap" label="Gap minutes" type="number" min={0} max={120} value={rangeGap} onChange={(event) => setRangeGap(Number(event.target.value))} /></div><Button type="submit" variant="surface" disabled={busy}>Generate times</Button></form></details>
+      <details data-dt="collection-generator"><summary>Or split a wider range into lesson times</summary><form onSubmit={(event) => { event.preventDefault(); void onGenerate({ date: rangeDate, from: rangeFrom, to: rangeTo, duration: rangeDuration, gap: rangeGap }); }}><Text variant="muted">For example, split 09:00–17:00 into {defaultDuration}-minute lessons with a {defaultGap}-minute gap. Edit any suggested time afterwards.</Text><div data-dt="collection-generator-fields"><Field id="range-date" label="Date" type="date" value={rangeDate} min={rangeMin} max={rangeMax} required onChange={(event) => setRangeDate(event.target.value)} /><Field id="range-from" label="From" type="time" value={rangeFrom} required onChange={(event) => setRangeFrom(event.target.value)} /><Field id="range-to" label="Until" type="time" value={rangeTo} required onChange={(event) => setRangeTo(event.target.value)} /><Field id="range-duration" label="Lesson minutes" type="number" min={15} max={480} value={rangeDuration} onChange={(event) => setRangeDuration(Number(event.target.value))} /><Field id="range-gap" label="Gap minutes" type="number" min={0} max={120} value={rangeGap} onChange={(event) => setRangeGap(Number(event.target.value))} /></div><Button type="submit" variant="surface" disabled={busy}>Generate times</Button></form></details>
       {error && errorArea === "generator" && <p data-dt="collection-feedback" role="alert">{error}</p>}
       {notice && noticeArea === "generator" && <p data-dt="collection-feedback" role="status">{notice}</p>}
     </section>

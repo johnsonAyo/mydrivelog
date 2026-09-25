@@ -17,6 +17,6 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   const parsed = exactSlotSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success || new Date(parsed.data.startsAt) <= new Date()) return problem(400, "invalid_slot", "Choose a future start and end, between 15 minutes and 8 hours apart");
   const result = await saveSlot(auth.session.workspaceId, id, { startsAt: new Date(parsed.data.startsAt), endsAt: new Date(parsed.data.endsAt), makeAvailable: parsed.data.makeAvailable });
-  if (!result.ok) return problem(result.reason === "not_found" ? 404 : 409, result.reason, result.reason === "overlap" ? "This lesson overlaps another time in the collection" : "Availability draft not found");
+  if (!result.ok) return problem(result.reason === "not_found" ? 404 : 409, result.reason, result.reason === "overlap" ? "This lesson overlaps another time in the collection" : result.reason === "outside_week" ? "Choose a lesson time inside this week" : "Availability draft not found");
   return NextResponse.json({ data: result.slot, warning: result.warning }, { status: 201 });
 }

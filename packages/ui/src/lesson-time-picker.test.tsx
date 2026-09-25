@@ -53,4 +53,11 @@ describe("lesson time picker", () => {
     expect(html).toContain('<option value="18:20" selected="">18:20 (exact)</option>');
     expect(lessonTimeIssue({ date: "2026-09-26", start: "16:20", end: "18:20", defaultDuration: 120 }, new Date("2026-09-25T10:11:00"))).toBeNull();
   });
+
+  it("constrains weekly dates before a time can be added", () => {
+    const html = renderToStaticMarkup(<LessonTimePicker date="2026-10-05" start="09:00" end="11:00" defaultDuration={120} weekStart="2026-09-28" now={new Date("2026-09-25T10:11:00")} {...callbacks} />);
+    expect(html).toContain('max="2026-10-04"');
+    expect(html).toContain("Choose a date inside this week.");
+    expect(lessonTimeIssue({ date: "2026-10-05", start: "09:00", end: "11:00", defaultDuration: 120, weekStart: "2026-09-28" }, new Date("2026-09-25T10:11:00"))).toBe("Choose a date inside this week.");
+  });
 });

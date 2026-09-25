@@ -4,6 +4,7 @@ import { useState } from "react";
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CollectionChooser, CollectionEditor, EmptyState, Stack, TrialNotice, type CollectionDetail, type CollectionFeedbackArea, type CollectionSummary, type ContactOption, type SchedulingSettings, type SlotInput } from "@drivetrack/ui";
 import { generateExactSlots } from "@/domain/collections/slot-policy";
+import { addCalendarDays, mondayOf, weekLabel, weeksTouchingMonth } from "@/domain/collections/week";
 
 type CollectionIndex = { collections: CollectionSummary[]; contacts: ContactOption[] };
 type FeedbackArea = CollectionFeedbackArea | "create";
@@ -30,7 +31,9 @@ export function AvailabilityWorkspace({ trialEndsAt, paidThrough, renderedAt, in
 function AvailabilityWorkspaceContent({ trialEndsAt, paidThrough, renderedAt, initialDate, testingWorkspace }: {
   trialEndsAt: string | null; paidThrough: string | null; renderedAt: string; initialDate: string; testingWorkspace: boolean;
 }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedWeek, setSelectedWeek] = useState<string | null>(() => mondayOf(initialDate));
+  const [legacyId, setLegacyId] = useState<string | null>(null);
+  const [month, setMonth] = useState(initialDate.slice(0, 7));
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<Feedback | null>(null);
@@ -39,7 +42,6 @@ function AvailabilityWorkspaceContent({ trialEndsAt, paidThrough, renderedAt, in
   const [lastInvitation, setLastInvitation] = useState<{ url: string; emailStatus: string } | null>(null);
   const queryClient = useQueryClient();
   const active = testingWorkspace || (trialEndsAt !== null && new Date(trialEndsAt) > new Date(renderedAt)) || (paidThrough !== null && new Date(paidThrough) > new Date(renderedAt));
-  const defaultName = `Week of ${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long" }).format(new Date(`${initialDate}T12:00:00`))}`;
 
   const index = useQuery({ queryKey: ["collections"], queryFn: async (): Promise<CollectionIndex> => {
     const response = await fetch("/api/v1/collections", { cache: "no-store" });
@@ -47,7 +49,31 @@ function AvailabilityWorkspaceContent({ trialEndsAt, paidThrough, renderedAt, in
     const json: { data: CollectionIndex } = await response.json();
     return json.data;
   } });
-  const activeId = selectedId ?? index.data?.collections[0]?.id ?? null;
+  const collections = index.data?.collections ?? [];
+  const weeks = weeksTouchingMonth(month).map((weekStart) => ({
+    weekStart,
+    label: weekLabel(weekStart),
+    collection: collections.find((collection) => collection.weekStart === weekStart) ?? null,
+    isPast: addCalendarDays(weekStart, 6) < initialDate,
+  }));
+  const activeId = legacyId ?? collections.find((collection) => collection.weekStart === selectedWeek)?.id ?? null;
+  const monthLabel = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${month}-01T12:00:00.000Z`));
+  function moveMonth(offset: number) {
+    const first = new Date(`${month}-01T12:00:00.000Z`);
+    first.setUTCMonth(first.getUTCMonth() + offset);
+    const next = first.toISOString().slice(0, 7);
+    setMonth(next);
+    const nextWeeks = weeksTouchingMonth(next);
+    setSelectedWeek((current) => next === initialDate.slice(0, 7) ? mondayOf(initialDate) : current && nextWeeks.includes(current) ? current : nextWeeks.find((week) => addCalendarDays(week, 6) >= initialDate) ?? nextWeeks[0]);
+    setLegacyId(null);
+    setGeneralUrl(null); setLastInvitation(null); setError(null);
+  }
+  function selectCollection(id: string) {
+    const selected = collections.find((collection) => collection.id === id);
+    if (selected?.weekStart) { setSelectedWeek(selected.weekStart); setLegacyId(null); }
+    else { setSelectedWeek(null); setLegacyId(id); }
+    setGeneralUrl(null); setLastInvitation(null); setError(null);
+  }
   const settings = useQuery({ queryKey: ["scheduling-settings"], queryFn: async (): Promise<SchedulingSettings> => {
     const response = await fetch("/api/v1/settings/scheduling", { cache: "no-store" });
     if (!response.ok) throw new Error("Could not load scheduling settings");
@@ -73,10 +99,10 @@ function AvailabilityWorkspaceContent({ trialEndsAt, paidThrough, renderedAt, in
     }
   }
 
-  async function create(name: string) {
+  async function create(weekStart: string) {
     await execute("create", async () => {
-      const json = await jsonRequest<{ data: { id: string } }>("/api/v1/collections", "POST", { name });
-      setSelectedId(json.data.id); setGeneralUrl(null); setLastInvitation(null);
+      await jsonRequest<{ data: { id: string } }>("/api/v1/collections", "POST", { weekStart });
+      setSelectedWeek(weekStart); setLegacyId(null); setGeneralUrl(null); setLastInvitation(null);
       await refresh();
     });
   }
@@ -137,7 +163,8 @@ function AvailabilityWorkspaceContent({ trialEndsAt, paidThrough, renderedAt, in
 
   return <Stack gap="5">
     {!testingWorkspace && <TrialNotice endsAt={trialEndsAt} paidThrough={paidThrough} now={renderedAt} />}
-    {index.isError ? <EmptyState title="Availability unavailable" description="We couldn’t load your lists. Try refreshing the page." /> : <CollectionChooser collections={index.data?.collections ?? []} selectedId={activeId} defaultName={defaultName} onCreate={create} onSelect={(id) => { setSelectedId(id); setGeneralUrl(null); setLastInvitation(null); setError(null); }} busy={creating || !active} error={error?.area === "create" ? error.message : null} />}
+    {index.isError ? <EmptyState title="Availability unavailable" description="We couldn’t load your lists. Try refreshing the page." /> : <CollectionChooser weeks={weeks} earlierLists={collections.filter((collection) => !collection.weekStart)} monthLabel={monthLabel} selectedId={activeId} onPreviousMonth={() => moveMonth(-1)} onNextMonth={() => moveMonth(1)} onCreate={create} onSelect={selectCollection} busy={creating || !active} error={error?.area === "create" ? error.message : null} />}
+    {!activeId && !index.isLoading && !index.isError && <EmptyState title="Choose a week to begin" description="Select Plan week above. Add one or more lesson times, save them privately, and share when you are ready." />}
     {activeId && (detail.data ? <CollectionEditor key={`${activeId}-${settings.data?.defaultSessionMinutes ?? 120}-${settings.data?.bufferWarningMinutes ?? 30}`} collection={detail.data} contacts={index.data?.contacts ?? []} defaultDuration={settings.data?.defaultSessionMinutes ?? 120} defaultGap={settings.data?.bufferWarningMinutes ?? 30} onSaveSlot={saveSlot} onSetStatus={setStatus} onGenerate={generate} onInvite={invite} onGeneralLink={makeGeneralLink} generalUrl={generalUrl} lastInvitation={lastInvitation} busy={editing || !active} error={error?.area !== "create" ? error?.message ?? null : null} errorArea={error?.area !== "create" ? error?.area ?? null : null} notice={notice?.message ?? null} noticeArea={notice?.area !== "create" ? notice?.area ?? null : null} /> : detail.isError ? <EmptyState title="Could not open this list" description="Please choose it again or refresh the page." /> : <p>Opening your time list…</p>)}
   </Stack>;
 }

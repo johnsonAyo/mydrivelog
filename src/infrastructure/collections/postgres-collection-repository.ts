@@ -1,8 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 import { getDatabase } from "@/infrastructure/database/client";
 import { nearbyGapWarning } from "@/domain/collections/slot-policy";
+import { isWithinWeek, weekLabel } from "@/domain/collections/week";
 
-type CollectionRow = { id: string; name: string; status: "draft" | "live"; updated_at: string; workspace_id: string };
+type CollectionRow = { id: string; name: string; week_start: string | null; status: "draft" | "live"; updated_at: string; workspace_id: string };
 type SlotRow = { id: string; starts_at: string; ends_at: string; status: "private" | "open" | "booked" | "closed" };
 type InviteRow = { id: string; name: string; email: string; email_status: string };
 type BookingRow = { id: string; slot_id: string; name: string; email: string; status: string; starts_at: string; ends_at: string; confirmation_email_status: string };
@@ -24,7 +25,7 @@ export async function listCollections(workspaceId: string) {
     where c.workspace_id = ${workspaceId}
     group by c.id order by c.updated_at desc
   `;
-  return rows.map((row) => ({ id: row.id, name: row.name, status: row.status, updatedAt: iso(row.updated_at), slotCount: row.slot_count, openCount: row.open_count, bookingCount: row.booking_count }));
+  return rows.map((row) => ({ id: row.id, name: row.name, weekStart: row.week_start, status: row.status, updatedAt: iso(row.updated_at), slotCount: row.slot_count, openCount: row.open_count, bookingCount: row.booking_count }));
 }
 
 export async function listContacts(workspaceId: string) {
@@ -49,12 +50,17 @@ export async function getInstructorForWorkspace(workspaceId: string) {
   return row ?? null;
 }
 
-export async function createCollection(workspaceId: string, name: string) {
+export async function createCollection(workspaceId: string, weekStart: string) {
   const { client } = getDatabase();
-  const [row] = await client<CollectionRow[]>`
-    insert into availability_collections (workspace_id, name) values (${workspaceId}, ${name}) returning *
+  const [created] = await client<CollectionRow[]>`
+    insert into availability_collections (workspace_id, name, week_start)
+    values (${workspaceId}, ${weekLabel(weekStart)}, ${weekStart})
+    on conflict (workspace_id, week_start) do nothing returning *
   `;
-  return { id: row.id, name: row.name, status: row.status };
+  const [row] = created ? [created] : await client<CollectionRow[]>`
+    select * from availability_collections where workspace_id = ${workspaceId} and week_start = ${weekStart}
+  `;
+  return { id: row.id, name: row.name, weekStart: row.week_start, status: row.status };
 }
 
 export async function getCollection(workspaceId: string, id: string) {
@@ -68,7 +74,7 @@ export async function getCollection(workspaceId: string, id: string) {
     client<{ token: string }[]>`select token from collection_general_links where collection_id = ${id}`,
   ]);
   return {
-    id: collection.id, name: collection.name, status: collection.status, updatedAt: iso(collection.updated_at),
+    id: collection.id, name: collection.name, weekStart: collection.week_start, status: collection.status, updatedAt: iso(collection.updated_at),
     slots: slots.map((slot) => ({ id: slot.id, startsAt: iso(slot.starts_at), endsAt: iso(slot.ends_at), status: slot.status })),
     invitations: invitations.map((invite) => ({ id: invite.id, name: invite.name, email: invite.email, emailStatus: invite.email_status })),
     bookings: bookings.map((booking) => ({ id: booking.id, slotId: booking.slot_id, name: booking.name, email: booking.email, startsAt: iso(booking.starts_at), endsAt: iso(booking.ends_at), confirmationEmailStatus: booking.confirmation_email_status })),
@@ -78,17 +84,27 @@ export async function getCollection(workspaceId: string, id: string) {
 
 export async function renameCollection(workspaceId: string, id: string, name: string) {
   const { client } = getDatabase();
-  const rows = await client<{ id: string }[]>`update availability_collections set name = ${name}, updated_at = now() where id = ${id} and workspace_id = ${workspaceId} returning id`;
+  const rows = await client<{ id: string }[]>`update availability_collections set name = ${name}, updated_at = now() where id = ${id} and workspace_id = ${workspaceId} and week_start is null returning id`;
   return rows.length > 0;
 }
 
 export async function saveSlot(workspaceId: string, collectionId: string, input: { id?: string; startsAt: Date; endsAt: Date; makeAvailable: boolean }) {
   const { client } = getDatabase();
   return client.begin(async (sql) => {
+    // Serialize changes across all lists in this instructor workspace.
+    const [settings] = await sql<{ buffer_warning_minutes: number; timezone: string }[]>`select buffer_warning_minutes, timezone from workspaces where id = ${workspaceId} for update`;
     const [collection] = await sql<CollectionRow[]>`select * from availability_collections where id = ${collectionId} and workspace_id = ${workspaceId} for update`;
     if (!collection) return { ok: false as const, reason: "not_found" as const };
-    const [settings] = await sql<{ buffer_warning_minutes: number }[]>`select buffer_warning_minutes from workspaces where id = ${workspaceId}`;
-    const others = await sql<SlotRow[]>`select id, starts_at, ends_at, status from collection_slots where collection_id = ${collectionId} and status <> 'closed' and (${input.id ?? null}::uuid is null or id <> ${input.id ?? null}::uuid) order by starts_at`;
+    if (collection.week_start && (!isWithinWeek(input.startsAt, collection.week_start, settings.timezone) || !isWithinWeek(input.endsAt, collection.week_start, settings.timezone))) {
+      return { ok: false as const, reason: "outside_week" as const };
+    }
+    const others = await sql<SlotRow[]>`
+      select s.id, s.starts_at, s.ends_at, s.status from collection_slots s
+      join availability_collections c on c.id = s.collection_id
+      where c.workspace_id = ${workspaceId} and s.status <> 'closed'
+        and (${input.id ?? null}::uuid is null or s.id <> ${input.id ?? null}::uuid)
+      order by s.starts_at
+    `;
     if (others.some((slot) => input.startsAt < new Date(slot.ends_at) && new Date(slot.starts_at) < input.endsAt)) {
       return { ok: false as const, reason: "overlap" as const };
     }

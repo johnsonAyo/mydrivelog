@@ -1427,16 +1427,19 @@ h3 {
 [data-dt="collection-section-heading"] { display: grid; gap: var(--space-2); padding: var(--space-5); border-bottom: 1px solid var(--line); }
 [data-dt="collection-section-heading"] [data-dt="text"] { margin-top: .2rem; }
 [data-dt="collection-panel"] > [data-dt="collection-section-heading"] { display: flex; align-items: start; justify-content: space-between; gap: var(--space-3); }
-[data-dt="collection-new-form"] { display: flex; align-items: end; gap: var(--space-3); padding: var(--space-4) var(--space-5); }
-[data-dt="collection-new-form"] [data-dt="field"] { flex: 1; min-width: 0; }
+[data-dt="collection-month-nav"] { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--line); }
+[data-dt="collection-month-nav"] strong { font-size: .95rem; }
 [data-dt="collection-list"] { display: grid; gap: 0; padding: 0 var(--space-5) var(--space-5); }
+[data-dt="collection-chooser"] > [data-dt="collection-list"] { padding-top: var(--space-5); }
 [data-dt="collection-list-item"] { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); background: var(--surface-white); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 [data-dt="collection-list-item"] + [data-dt="collection-list-item"] { border-top: 0; }
 [data-dt="collection-list-item"]:first-child { border-radius: var(--product-control-radius) var(--product-control-radius) 0 0; }
 [data-dt="collection-list-item"]:last-child { border-radius: 0 0 var(--product-control-radius) var(--product-control-radius); }
 [data-dt="collection-list-item"][aria-current="true"] { position: relative; border-color: var(--yellow-line); background: var(--yellow-accent); }
+[data-dt="collection-list-item"]:disabled { cursor: default; opacity: .6; }
 [data-dt="collection-list-item"] span:first-child { display: grid; gap: .25rem; }
 [data-dt="collection-list-item"] small, [data-dt="collection-invitees"] small { color: var(--ink-soft); font-size: .75rem; }
+[data-dt="collection-week-action"] { color: var(--green-deep); font-size: .8rem; font-weight: 700; white-space: nowrap; }
 [data-dt="collection-create-more"] { border-top: 1px solid var(--line); }
 [data-dt="collection-create-more"] summary { padding: var(--space-3) var(--space-5); color: var(--green-deep); font-size: .85rem; font-weight: 700; cursor: pointer; }
 [data-dt="collection-workspace"] { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, .8fr); align-items: start; gap: var(--space-5); }

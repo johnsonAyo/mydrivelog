@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  date,
   index,
   integer,
   pgEnum,
@@ -153,16 +154,20 @@ export const bookings = pgTable("bookings", {
   check("bookings_positive_duration", sql`${table.endsAt} > ${table.startsAt}`),
 ]);
 
-// Exact lesson times are grouped into editable drafts. The earlier window tables
+// Exact lesson times are grouped into weekly drafts. Earlier free-form lists and window tables
 // remain for existing data while the collection workflow replaces them in the UI.
 export const availabilityCollections = pgTable("availability_collections", {
   id: uuid("id").primaryKey().defaultRandom(),
   workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
+  weekStart: date("week_start", { mode: "string" }),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [index("availability_collections_workspace_idx").on(table.workspaceId, table.updatedAt)]);
+}, (table) => [
+  index("availability_collections_workspace_idx").on(table.workspaceId, table.updatedAt),
+  uniqueIndex("availability_collections_workspace_week_unique").on(table.workspaceId, table.weekStart),
+]);
 
 export const collectionSlots = pgTable("collection_slots", {
   id: uuid("id").primaryKey().defaultRandom(),

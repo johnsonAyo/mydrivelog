@@ -5,6 +5,7 @@ import { CollectionChooser, CollectionEditor, type CollectionDetail } from "./co
 const collection: CollectionDetail = {
   id: "list-1",
   name: "Week of 28 September",
+  weekStart: "2026-09-28",
   status: "draft",
   slots: [{ id: "time-1", startsAt: "2026-09-28T08:00:00.000Z", endsAt: "2026-09-28T10:00:00.000Z", status: "private" }],
   invitations: [],
@@ -13,21 +14,45 @@ const collection: CollectionDetail = {
 };
 
 describe("availability list editor", () => {
-  it("keeps creating another draft secondary once a list exists", () => {
+  it("shows a month of weeks with status and a direct plan-week action", () => {
     const html = renderToStaticMarkup(<CollectionChooser
-      collections={[{ id: collection.id, name: collection.name, status: "draft", updatedAt: "2026-09-25T08:00:00.000Z", slotCount: 1, openCount: 0, bookingCount: 0 }]}
+      weeks={[{ weekStart: "2026-09-28", label: "28 Sep–4 Oct 2026", collection: { id: collection.id, name: collection.name, weekStart: collection.weekStart, status: "draft", updatedAt: "2026-09-25T08:00:00.000Z", slotCount: 1, openCount: 0, bookingCount: 0 }, isPast: false }, { weekStart: "2026-10-05", label: "5–11 Oct 2026", collection: null, isPast: false }]}
+      earlierLists={[]}
+      monthLabel="October 2026"
       selectedId={collection.id}
-      defaultName="Week of 28 September"
+      onPreviousMonth={() => {}}
+      onNextMonth={() => {}}
       onCreate={async () => {}}
       onSelect={() => {}}
       busy={false}
       error={null}
     />);
 
-    expect(html).toContain("Your time lists");
-    expect(html).toContain('<details data-dt="collection-create-more"');
-    expect(html).toContain("Create another list");
-    expect(html.indexOf('data-dt="collection-list"')).toBeLessThan(html.indexOf('data-dt="collection-new-form"'));
+    expect(html).toContain("Plan by week");
+    expect(html).toContain("October 2026");
+    expect(html).toContain("Week 1 · 28 Sep–4 Oct 2026");
+    expect(html).toContain("1 time · 0 booked");
+    expect(html).toContain("Plan week");
+  });
+
+  it("keeps an existing week viewable when creating is unavailable", () => {
+    const html = renderToStaticMarkup(<CollectionChooser
+      weeks={[{ weekStart: "2026-09-28", label: "28 Sep–4 Oct 2026", collection: { id: collection.id, name: collection.name, weekStart: collection.weekStart, status: "draft", updatedAt: "2026-09-25T08:00:00.000Z", slotCount: 1, openCount: 0, bookingCount: 0 }, isPast: false }, { weekStart: "2026-10-05", label: "5–11 Oct 2026", collection: null, isPast: false }]}
+      earlierLists={[]}
+      monthLabel="October 2026"
+      selectedId={null}
+      onPreviousMonth={() => {}}
+      onNextMonth={() => {}}
+      onCreate={async () => {}}
+      onSelect={() => {}}
+      busy
+      error={null}
+    />);
+
+    const weekButtons = [...html.matchAll(/<button[^>]*data-dt="collection-list-item"[^>]*>/g)].map(([button]) => button);
+    expect(weekButtons).toHaveLength(2);
+    expect(weekButtons[0]).not.toContain("disabled");
+    expect(weekButtons[1]).toContain("disabled");
   });
 
   it("makes adding another time the visible next step and shows saved times beneath the form", () => {

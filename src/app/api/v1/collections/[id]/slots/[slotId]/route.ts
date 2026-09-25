@@ -26,6 +26,6 @@ export async function PATCH(request: NextRequest, { params }: RouteContext<"/api
   if (!parsed.success || new Date(parsed.data.startsAt) <= new Date()) return problem(400, "invalid_slot", "Choose a future start and end, between 15 minutes and 8 hours apart");
   const result = await saveSlot(auth.session.workspaceId, id, { id: slotId, startsAt: new Date(parsed.data.startsAt), endsAt: new Date(parsed.data.endsAt), makeAvailable: parsed.data.makeAvailable });
   if (!result.ok) return problem(result.reason === "not_found" ? 404 : 409, result.reason,
-    result.reason === "booked" ? "A booked lesson needs a separate reschedule or cancellation" : result.reason === "overlap" ? "This lesson overlaps another time in the collection" : "Lesson time not found");
+    result.reason === "booked" ? "A booked lesson needs a separate reschedule or cancellation" : result.reason === "overlap" ? "This lesson overlaps another time in the collection" : result.reason === "outside_week" ? "Choose a lesson time inside this week" : "Lesson time not found");
   return NextResponse.json({ data: result.slot, warning: result.warning });
 }
