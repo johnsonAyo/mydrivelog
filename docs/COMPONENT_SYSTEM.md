@@ -25,7 +25,7 @@ The component lab at `/component-lab` is the visual inventory. It uses inert act
 
 ## Interaction contract
 
-The list editor keeps the common path visible: name a list, add exact times, then share. The range generator is a secondary disclosure. Scheduling defaults prefill duration and gap but do not prevent editing an individual time. A shared collection can still receive private times, which require an explicit “Make available” action. Booked entries display the recipient and cannot be moved by the slot editor. Public booking displays only currently available times and the recipient's own confirmed lessons. The view components do not fetch or mutate; client adapters own those concerns.
+The list editor keeps the common path visible: name a list, add one lesson time, repeat within the same list, then share. The saved times appear directly below the entry form; after a save the date stays selected and the next start time receives focus. Date and time controls offer future, half-hour choices with inline guidance; an exact-minute disclosure handles irregular times. The range generator sits below the saved list as a secondary tool for splitting a wider window into lessons. Scheduling defaults prefill duration and gap but do not prevent editing an individual time. A shared collection can still receive private times, which require an explicit “Make available” action. Booked entries display the recipient and cannot be moved by the slot editor. Public booking displays only currently available times and the recipient's own confirmed lessons. The view components do not fetch or mutate; client adapters own those concerns.
 
 ## Next component slices before pages
 
