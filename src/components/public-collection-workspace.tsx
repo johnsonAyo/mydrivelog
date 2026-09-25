@@ -35,12 +35,22 @@ export function PublicCollectionWorkspace({ token }: { token: string }) {
         if (response.status === 409) await refresh();
         throw new Error(json.detail ?? "Could not complete this request.");
       }
-      await refresh();
-      setNotice(success);
+      const result: { data?: { confirmationEmailStatus?: string; emailStatus?: { learner: string; instructor: string } } } = await response.json();
+      const delivery = result.data?.emailStatus;
+      const emailUnavailable = delivery && (delivery.learner !== "sent" || delivery.instructor !== "sent");
+      const message = result.data?.confirmationEmailStatus
+        ? `${success} ${result.data.confirmationEmailStatus === "sent" ? "A confirmation email has been sent." : "Email confirmation is unavailable; keep this link for your booking details."}`
+        : emailUnavailable ? `${success} Email was not delivered to everyone; please contact your instructor directly.` : success;
+      try {
+        await refresh();
+        setNotice(message);
+      } catch {
+        setNotice(`${message} Refresh the page to see the latest times.`);
+      }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not complete this request."); } finally { setBusy(false); }
   }
 
   if (loadingError) return <div data-dt="public-booking-wrap"><EmptyState title="Booking unavailable" description={loadingError} /></div>;
   if (!collection) return <div data-dt="public-booking-wrap"><p>Loading lesson times…</p></div>;
-  return <PublicCollectionPicker collection={collection} onRequestAccess={(name, email) => act({ action: "request_access", name, email }, "Check your email for your personal booking link.")} onBook={(slotId) => act({ action: "claim", slotId }, "Your lesson is booked. A confirmation email has been sent if email delivery is connected.")} busy={busy} error={error} notice={notice} />;
+  return <PublicCollectionPicker collection={collection} onRequestAccess={(name, email) => act({ action: "request_access", name, email }, "Check your email for your personal booking link.")} onBook={(slotId) => act({ action: "claim", slotId }, "Your lesson is booked.")} onChangeBooking={(bookingId, action, slotId) => act({ action, collectionId: collection.collectionId, bookingId, slotId }, action === "cancel" ? "Lesson cancelled. The change is reflected in your instructor’s calendar." : "Lesson moved. The new time is reflected in your instructor’s calendar.")} busy={busy} error={error} notice={notice} />;
 }

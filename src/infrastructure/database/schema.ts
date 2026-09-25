@@ -17,6 +17,9 @@ export const weeklyBookingAllowance = pgEnum("weekly_booking_allowance", [
   "unlimited",
   "two",
   "one",
+  "three",
+  "four",
+  "five",
 ]);
 export const availabilityStatus = pgEnum("availability_status", [
   "open",
@@ -46,6 +49,8 @@ export const workspaces = pgTable(
     timezone: text("timezone").notNull().default("Europe/London"),
     defaultSessionMinutes: integer("default_session_minutes").notNull().default(120),
     bufferWarningMinutes: integer("buffer_warning_minutes").notNull().default(30),
+    minimumBookingNoticeHours: integer("minimum_booking_notice_hours").notNull().default(0),
+    contactPhone: text("contact_phone"),
     weeklyBookingAllowance: weeklyBookingAllowance("weekly_booking_allowance")
       .notNull()
       .default("unlimited"),
@@ -59,8 +64,19 @@ export const workspaces = pgTable(
     uniqueIndex("workspaces_owner_unique").on(table.ownerIdentityId),
     check("workspaces_default_session_positive", sql`${table.defaultSessionMinutes} > 0`),
     check("workspaces_buffer_warning_allowed", sql`${table.bufferWarningMinutes} in (0, 15, 30, 45, 60)`),
+    check("workspaces_notice_allowed", sql`${table.minimumBookingNoticeHours} in (0, 12, 24, 48)`),
   ],
 );
+
+export const learnerContacts = pgTable("learner_contacts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  sourceEmail: text("source_email").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex("learner_contacts_workspace_source_unique").on(table.workspaceId, sql`lower(${table.sourceEmail})`)]);
 
 export const authChallenges = pgTable(
   "auth_challenges",

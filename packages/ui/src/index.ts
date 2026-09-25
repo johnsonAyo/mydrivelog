@@ -11,3 +11,5 @@ export { SchedulingNotice, AvailabilityReleaseSummary, BookingSummaryCard } from
 export type { CalendarSlot, TimelineLesson } from "./models";
 export { Showcase, ShowcaseIntro, ShowcaseSection, ShowcaseGrid } from "./showcase";
 export { EmailAccessForm, TrialNotice } from "./access";
+export { LearnerDirectory } from "./learners";
+export type { Learner } from "./learners";

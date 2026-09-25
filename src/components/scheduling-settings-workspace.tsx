@@ -15,7 +15,7 @@ export function SchedulingSettingsWorkspace() {
     }).catch(() => { if (active) setError(true); });
     return () => { active = false; };
   }, []);
-  async function save(input: Pick<SchedulingSettings, "name" | "defaultSessionMinutes" | "bufferWarningMinutes" | "weeklyBookingAllowance">) {
+  async function save(input: Pick<SchedulingSettings, "defaultSessionMinutes" | "bufferWarningMinutes" | "weeklyBookingAllowance" | "minimumBookingNoticeHours" | "contactPhone">) {
     const response = await fetch("/api/v1/settings/scheduling", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
     if (!response.ok) {
       const body: { detail?: string } = await response.json().catch(() => ({}));

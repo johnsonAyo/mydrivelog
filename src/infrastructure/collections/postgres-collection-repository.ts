@@ -1,13 +1,15 @@
 import { createHash, randomBytes } from "node:crypto";
 import { getDatabase } from "@/infrastructure/database/client";
 import { nearbyGapWarning } from "@/domain/collections/slot-policy";
+import { canLearnerChange, hasBookingNotice, weeklyBookingLimit } from "@/domain/collections/booking-policy";
 import { isWithinWeek, weekLabel } from "@/domain/collections/week";
+import { listLearners } from "@/infrastructure/learners/postgres-learner-repository";
 
 type CollectionRow = { id: string; name: string; week_start: string | null; status: "draft" | "live"; updated_at: string; workspace_id: string };
 type SlotRow = { id: string; starts_at: string; ends_at: string; status: "private" | "open" | "booked" | "closed" };
 type InviteRow = { id: string; name: string; email: string; email_status: string };
 type BookingRow = { id: string; slot_id: string; name: string; email: string; status: string; starts_at: string; ends_at: string; confirmation_email_status: string };
-type PublicContext = { collection_id: string; workspace_id: string; instructor_name: string; instructor_email: string; timezone: string; weekly_booking_allowance: string; status: string; name: string | null; email: string | null; kind: "invitation" | "access" | "general" };
+type PublicContext = { collection_id: string; workspace_id: string; instructor_name: string; instructor_email: string; contact_phone: string | null; timezone: string; minimum_booking_notice_hours: number; weekly_booking_allowance: string; status: string; name: string | null; email: string | null; kind: "invitation" | "access" | "general" };
 
 const hash = (token: string) => createHash("sha256").update(token).digest("hex");
 const newToken = () => randomBytes(32).toString("base64url");
@@ -29,17 +31,7 @@ export async function listCollections(workspaceId: string) {
 }
 
 export async function listContacts(workspaceId: string) {
-  const { client } = getDatabase();
-  const rows = await client<{ name: string; email: string }[]>`
-    select distinct on (lower(person.email)) person.name, lower(person.email) as email from (
-      select i.name, i.email, i.created_at as seen_at from collection_invitations i
-        join availability_collections c on c.id = i.collection_id where c.workspace_id = ${workspaceId}
-      union all
-      select b.name, b.email, b.created_at as seen_at from collection_bookings b
-        join availability_collections c on c.id = b.collection_id where c.workspace_id = ${workspaceId}
-    ) person order by lower(person.email), person.seen_at desc
-  `;
-  return rows;
+  return (await listLearners(workspaceId)).map(({ name, email }) => ({ name, email }));
 }
 
 export async function getInstructorForWorkspace(workspaceId: string) {
@@ -80,6 +72,35 @@ export async function getCollection(workspaceId: string, id: string) {
     bookings: bookings.map((booking) => ({ id: booking.id, slotId: booking.slot_id, name: booking.name, email: booking.email, startsAt: iso(booking.starts_at), endsAt: iso(booking.ends_at), confirmationEmailStatus: booking.confirmation_email_status })),
     generalToken: general[0]?.token ?? null,
   };
+}
+
+export async function getCollectionPreview(workspaceId: string, id: string, kind: "invitation" | "general") {
+  const collection = await getCollection(workspaceId, id);
+  if (!collection) return null;
+  const { client } = getDatabase();
+  const [instructor] = await client<{ name: string; email: string; contact_phone: string | null; timezone: string; minimum_booking_notice_hours: number }[]>`
+    select w.name, i.email, w.contact_phone, w.timezone, w.minimum_booking_notice_hours from workspaces w
+      join instructor_identities i on i.id = w.owner_identity_id where w.id = ${workspaceId}
+  `;
+  const slots = await client<SlotRow[]>`
+    select s.id, s.starts_at, s.ends_at, s.status from collection_slots s
+    where s.collection_id = ${id} and s.status = ${collection.status === "draft" ? "private" : "open"}
+      and s.starts_at > now() + ${instructor.minimum_booking_notice_hours} * interval '1 hour'
+      and not exists (
+        select 1 from collection_bookings b join collection_slots occupied on occupied.id = b.slot_id
+          join availability_collections c on c.id = b.collection_id
+        where c.workspace_id = ${workspaceId} and b.status = 'confirmed'
+          and occupied.starts_at < s.ends_at and occupied.ends_at > s.starts_at
+      )
+      and not exists (
+        select 1 from bookings legacy where legacy.workspace_id = ${workspaceId}
+          and legacy.status = 'confirmed' and legacy.starts_at < s.ends_at and legacy.ends_at > s.starts_at
+      )
+    order by s.starts_at
+  `;
+  return { collectionName: collection.name, instructorName: instructor.name, instructorEmail: instructor.email,
+    contactPhone: instructor.contact_phone, timezone: instructor.timezone, name: kind === "invitation" ? "Invited learner" : null,
+    kind, slots: slots.map((slot) => ({ id: slot.id, startsAt: iso(slot.starts_at), endsAt: iso(slot.ends_at) })), ownBookings: [] };
 }
 
 export async function renameCollection(workspaceId: string, id: string, name: string) {
@@ -182,7 +203,7 @@ async function resolvePublicToken(token: string): Promise<PublicContext | null> 
   const tokenHash = hash(token);
   const [context] = await client<PublicContext[]>`
     select c.id as collection_id, w.id as workspace_id, w.name as instructor_name,
-      ii.email as instructor_email, w.timezone, w.weekly_booking_allowance, c.status,
+      ii.email as instructor_email, w.contact_phone, w.timezone, w.minimum_booking_notice_hours, w.weekly_booking_allowance, c.status,
       identity.name, identity.email, identity.kind
     from (
       select collection_id, name, email, 'invitation'::text as kind from collection_invitations where token_hash = ${tokenHash}
@@ -204,7 +225,8 @@ export async function getPublicCollection(token: string) {
   const { client } = getDatabase();
   const slots = await client<SlotRow[]>`
     select s.id, s.starts_at, s.ends_at, s.status from collection_slots s
-    where s.collection_id = ${context.collection_id} and s.status = 'open' and s.starts_at > now()
+    where s.collection_id = ${context.collection_id} and s.status = 'open'
+      and s.starts_at > now() + ${context.minimum_booking_notice_hours} * interval '1 hour'
       and not exists (
         select 1 from collection_bookings b join collection_slots occupied on occupied.id = b.slot_id
           join availability_collections c on c.id = b.collection_id
@@ -223,8 +245,9 @@ export async function getPublicCollection(token: string) {
     order by s.starts_at
   ` : [];
   return {
+    collectionId: context.collection_id,
     collectionName: (await client<{ name: string }[]>`select name from availability_collections where id = ${context.collection_id}`)[0].name,
-    instructorName: context.instructor_name, timezone: context.timezone,
+    instructorName: context.instructor_name, instructorEmail: context.instructor_email, contactPhone: context.contact_phone, timezone: context.timezone,
     name: context.name, kind: context.kind,
     slots: slots.map((slot) => ({ id: slot.id, startsAt: iso(slot.starts_at), endsAt: iso(slot.ends_at) })),
     ownBookings: own.map((booking) => ({ id: booking.id, startsAt: iso(booking.starts_at), endsAt: iso(booking.ends_at) })),
@@ -237,7 +260,9 @@ export async function requestGeneralAccess(token: string, name: string, email: s
   const accessToken = newToken();
   const { client } = getDatabase();
   await client`insert into collection_general_access (collection_id, name, email, token_hash, expires_at)
-    values (${context.collection_id}, ${name}, ${email.toLowerCase()}, ${hash(accessToken)}, now() + interval '7 days')`;
+    values (${context.collection_id}, ${name}, ${email.toLowerCase()}, ${hash(accessToken)},
+      greatest(now() + interval '7 days',
+        (select coalesce(max(ends_at), now()) + interval '7 days' from collection_slots where collection_id = ${context.collection_id})))`;
   return { accessToken, instructorName: context.instructor_name };
 }
 
@@ -257,7 +282,7 @@ export async function claimCollectionSlot(token: string, slotId: string): Promis
     const [slot] = await sql<SlotRow[]>`
       select id, starts_at, ends_at, status from collection_slots where id = ${slotId} and collection_id = ${context.collection_id} for update
     `;
-    if (!slot || slot.status !== "open" || new Date(slot.starts_at) <= new Date()) return { ok: false, reason: "conflict" };
+    if (!slot || slot.status !== "open" || !hasBookingNotice(slot.starts_at, context.minimum_booking_notice_hours)) return { ok: false, reason: "conflict" };
     const [occupied] = await sql<{ id: string }[]>`
       select b.id from collection_bookings b join collection_slots s on s.id = b.slot_id
         join availability_collections c on c.id = b.collection_id
@@ -270,14 +295,21 @@ export async function claimCollectionSlot(token: string, slotId: string): Promis
         and starts_at < ${iso(slot.ends_at)} and ends_at > ${iso(slot.starts_at)} limit 1
     `;
     if (legacyBooking) return { ok: false, reason: "conflict" };
-    if (context.weekly_booking_allowance !== "unlimited") {
-      const limit = context.weekly_booking_allowance === "one" ? 1 : 2;
+    const limit = weeklyBookingLimit(context.weekly_booking_allowance);
+    if (limit !== null) {
       const [count] = await sql<{ count: number }[]>`
-        select count(*)::int as count from collection_bookings b
-          join availability_collections c on c.id = b.collection_id
-          join collection_slots s on s.id = b.slot_id
-        where c.workspace_id = ${context.workspace_id} and lower(b.email) = lower(${email}) and b.status = 'confirmed'
-          and date_trunc('week', s.starts_at at time zone ${context.timezone}) = date_trunc('week', ${iso(slot.starts_at)}::timestamptz at time zone ${context.timezone})
+        select count(*)::int as count from (
+          select s.starts_at, b.email from collection_bookings b
+            join availability_collections c on c.id = b.collection_id
+            join collection_slots s on s.id = b.slot_id
+          where c.workspace_id = ${context.workspace_id} and b.status = 'confirmed'
+          union all
+          select b.starts_at, r.email from bookings b
+            join release_recipients r on r.id = b.recipient_id
+          where b.workspace_id = ${context.workspace_id} and b.status = 'confirmed'
+        ) booked
+        where lower(booked.email) = lower(${email})
+          and date_trunc('week', booked.starts_at at time zone ${context.timezone}) = date_trunc('week', ${iso(slot.starts_at)}::timestamptz at time zone ${context.timezone})
       `;
       if (count.count >= limit) return { ok: false, reason: "weekly_limit" };
     }
@@ -293,4 +325,64 @@ export async function claimCollectionSlot(token: string, slotId: string): Promis
 export async function setCollectionBookingEmailStatus(id: string, status: "sent" | "failed" | "not_configured") {
   const { client } = getDatabase();
   await client`update collection_bookings set confirmation_email_status = ${status} where id = ${id}`;
+}
+
+export type ChangeBookingResult =
+  | { ok: true; name: string; email: string; instructorEmail: string; instructorName: string; timezone: string; startsAt: string; endsAt: string; action: "cancel" | "reschedule" }
+  | { ok: false; reason: "not_found" | "too_late" | "conflict" };
+
+export async function changeCollectionBooking(input: {
+  collectionId: string; bookingId: string; actor: { kind: "instructor"; workspaceId: string } | { kind: "learner"; token: string };
+  action: "cancel" | "reschedule"; targetSlotId?: string;
+}): Promise<ChangeBookingResult> {
+  const publicContext = input.actor.kind === "learner" ? await resolvePublicToken(input.actor.token) : null;
+  if (input.actor.kind === "learner" && (!publicContext || !publicContext.email || publicContext.collection_id !== input.collectionId)) return { ok: false, reason: "not_found" };
+  const workspaceId = input.actor.kind === "instructor" ? input.actor.workspaceId : publicContext!.workspace_id;
+  const { client } = getDatabase();
+  return client.begin(async (sql): Promise<ChangeBookingResult> => {
+    await sql`select pg_advisory_xact_lock(hashtextextended(${workspaceId}, 0))`;
+    const [booking] = await sql<{ id: string; slot_id: string; name: string; email: string; status: string; starts_at: string; ends_at: string; collection_status: string; instructor_name: string; instructor_email: string; timezone: string; notice_hours: number }[]>`
+      select b.id, b.slot_id, b.name, b.email, b.status, s.starts_at, s.ends_at, c.status as collection_status,
+        w.name as instructor_name, i.email as instructor_email, w.timezone, w.minimum_booking_notice_hours as notice_hours
+      from collection_bookings b join collection_slots s on s.id = b.slot_id
+        join availability_collections c on c.id = b.collection_id
+        join workspaces w on w.id = c.workspace_id join instructor_identities i on i.id = w.owner_identity_id
+      where b.id = ${input.bookingId} and b.collection_id = ${input.collectionId} and c.workspace_id = ${workspaceId}
+      for update of b, s
+    `;
+    if (!booking || booking.status !== "confirmed" || (publicContext && booking.email.toLowerCase() !== publicContext.email!.toLowerCase())) return { ok: false, reason: "not_found" };
+    if (input.actor.kind === "learner" && !canLearnerChange(booking.starts_at)) return { ok: false, reason: "too_late" };
+    let startsAt = iso(booking.starts_at);
+    let endsAt = iso(booking.ends_at);
+    let nextSlotId: string | null = null;
+    if (input.action === "reschedule") {
+      if (!input.targetSlotId) return { ok: false, reason: "conflict" };
+      const [target] = await sql<SlotRow[]>`select id, starts_at, ends_at, status from collection_slots where id = ${input.targetSlotId} and collection_id = ${input.collectionId} for update`;
+      if (!target || target.status !== "open" || !hasBookingNotice(target.starts_at, input.actor.kind === "learner" ? booking.notice_hours : 0)) return { ok: false, reason: "conflict" };
+      const [occupied] = await sql<{ id: string }[]>`
+        select b.id from collection_bookings b join collection_slots s on s.id = b.slot_id
+          join availability_collections c on c.id = b.collection_id
+        where c.workspace_id = ${workspaceId} and b.status = 'confirmed' and b.id <> ${booking.id}
+          and s.starts_at < ${iso(target.ends_at)} and s.ends_at > ${iso(target.starts_at)} limit 1
+      `;
+      const [legacy] = await sql<{ id: string }[]>`
+        select id from bookings where workspace_id = ${workspaceId} and status = 'confirmed'
+          and starts_at < ${iso(target.ends_at)} and ends_at > ${iso(target.starts_at)} limit 1
+      `;
+      if (occupied || legacy) return { ok: false, reason: "conflict" };
+      startsAt = iso(target.starts_at);
+      endsAt = iso(target.ends_at);
+      nextSlotId = target.id;
+    }
+    if (nextSlotId) {
+      await sql`update collection_bookings set slot_id = ${nextSlotId} where id = ${booking.id}`;
+      await sql`update collection_slots set status = 'booked', updated_at = now() where id = ${nextSlotId}`;
+    } else {
+      await sql`update collection_bookings set status = 'cancelled' where id = ${booking.id}`;
+    }
+    const originalStatus = new Date(booking.starts_at) <= new Date() ? "closed" : booking.collection_status === "live" ? "open" : "private";
+    await sql`update collection_slots set status = ${originalStatus}, updated_at = now() where id = ${booking.slot_id}`;
+    return { ok: true, name: booking.name, email: booking.email, instructorEmail: booking.instructor_email,
+      instructorName: booking.instructor_name, timezone: booking.timezone, startsAt, endsAt, action: input.action };
+  });
 }

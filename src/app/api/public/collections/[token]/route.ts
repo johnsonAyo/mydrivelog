@@ -2,12 +2,17 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sendBookingConfirmation, sendBookingEmail } from "@/infrastructure/booking/booking-email";
-import { claimCollectionSlot, getPublicCollection, requestGeneralAccess, setCollectionBookingEmailStatus } from "@/infrastructure/collections/postgres-collection-repository";
+import { changeCollectionBooking, claimCollectionSlot, getPublicCollection, requestGeneralAccess, setCollectionBookingEmailStatus } from "@/infrastructure/collections/postgres-collection-repository";
+import { notifyBookingChange } from "@/application/collections/notify-booking-change";
 import { problem } from "@/presentation/http/problem";
 
 const tokenPattern = /^[A-Za-z0-9_-]{40,80}$/;
 const requestAccessSchema = z.object({ action: z.literal("request_access"), name: z.string().trim().min(2).max(100), email: z.email().max(254) });
 const claimSchema = z.object({ action: z.literal("claim"), slotId: z.uuid() });
+const changeSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("cancel"), collectionId: z.uuid(), bookingId: z.uuid() }),
+  z.object({ action: z.literal("reschedule"), collectionId: z.uuid(), bookingId: z.uuid(), slotId: z.uuid() }),
+]);
 
 export async function GET(_request: NextRequest, { params }: RouteContext<"/api/public/collections/[token]">) {
   const { token } = await params;
@@ -21,6 +26,16 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   const { token } = await params;
   if (!tokenPattern.test(token)) return problem(404, "not_found", "This availability link is unavailable");
   const body: unknown = await request.json().catch(() => null);
+  const change = changeSchema.safeParse(body);
+  if (change.success) {
+    const result = await changeCollectionBooking({ collectionId: change.data.collectionId, bookingId: change.data.bookingId,
+      actor: { kind: "learner", token }, action: change.data.action,
+      targetSlotId: change.data.action === "reschedule" ? change.data.slotId : undefined });
+    if (!result.ok) return problem(result.reason === "not_found" ? 404 : 409, result.reason,
+      result.reason === "too_late" ? "Contact your instructor to change a lesson within 48 hours" : "That lesson or replacement time is no longer available");
+    const emailStatus = await notifyBookingChange(result);
+    return NextResponse.json({ data: { action: result.action, emailStatus } });
+  }
   const access = requestAccessSchema.safeParse(body);
   if (access.success) {
     const result = await requestGeneralAccess(token, access.data.name, access.data.email);
@@ -44,7 +59,7 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   });
   const format = new Intl.DateTimeFormat("en-GB", { dateStyle: "full", timeStyle: "short", timeZone: result.timezone });
   await sendBookingEmail(result.instructorEmail, `Lesson booked by ${result.name}`,
-    `${result.name} (${result.email}) booked a lesson from your availability.\nStart: ${format.format(new Date(result.startsAt))}\nEnd: ${format.format(new Date(result.endsAt))}\n\nOpen your MyDriveLog calendar to see the booking.`);
+    `${result.name} (${result.email}) booked a lesson from your availability.\nStart: ${format.format(new Date(result.startsAt))}\nEnd: ${format.format(new Date(result.endsAt))}\n\nOpen your calendar to see the booking.`);
   await setCollectionBookingEmailStatus(result.id, learnerStatus);
   return NextResponse.json({ data: { id: result.id, startsAt: result.startsAt, endsAt: result.endsAt, confirmationEmailStatus: learnerStatus } }, { status: 201 });
 }

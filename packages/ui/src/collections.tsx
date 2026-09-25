@@ -28,6 +28,13 @@ function displayDate(value: string) {
   return new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date(value));
 }
 
+function lessonLength(value: number) {
+  if (value === 30) return "½ hour";
+  if (value === 45) return "¾ hour";
+  const hours = value / 60;
+  return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+}
+
 function lastDayOfWeek(weekStart: string) {
   const date = new Date(`${weekStart}T12:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + 6);
@@ -53,11 +60,13 @@ export function CollectionChooser({ weeks, earlierLists, monthLabel, selectedId,
   </section>;
 }
 
-export function CollectionEditor({ collection, contacts, defaultDuration, defaultGap, onSaveSlot, onSetStatus, onGenerate, onInvite, onGeneralLink, generalUrl, lastInvitation, busy, error, notice, errorArea = "time", noticeArea = "share" }: {
+export function CollectionEditor({ collection, contacts, defaultDuration, defaultGap, onSaveSlot, onSetStatus, onGenerate, onInvite, onGeneralLink, onPreview, onChangeBooking, generalUrl, lastInvitation, busy, error, notice, errorArea = "time", noticeArea = "share" }: {
   collection: CollectionDetail; contacts: readonly ContactOption[]; defaultDuration: number; defaultGap: number;
   onSaveSlot: (input: SlotInput, id?: string) => Promise<boolean>; onSetStatus: (slotId: string, status: "private" | "open" | "closed") => Promise<void>;
   onGenerate: (input: { date: string; from: string; to: string; duration: number; gap: number }) => Promise<void>;
   onInvite: (name: string, email: string) => Promise<void>; onGeneralLink: () => Promise<void>;
+  onPreview: (kind: "invitation" | "general") => Promise<PublicCollection>;
+  onChangeBooking?: (bookingId: string, action: "cancel" | "reschedule", slotId?: string) => Promise<void>;
   generalUrl: string | null; lastInvitation: { url: string; emailStatus: string } | null; busy: boolean; error: string | null; notice: string | null;
   errorArea?: CollectionFeedbackArea | null; noticeArea?: CollectionFeedbackArea | null;
 }) {
@@ -76,6 +85,14 @@ export function CollectionEditor({ collection, contacts, defaultDuration, defaul
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [copied, setCopied] = useState(false);
+  const [preview, setPreview] = useState<PublicCollection | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [changingBookingId, setChangingBookingId] = useState<string | null>(null);
+  const [replacementSlotId, setReplacementSlotId] = useState("");
+  async function showPreview(kind: "invitation" | "general") {
+    setPreviewError(null);
+    try { setPreview(await onPreview(kind)); } catch { setPreviewError("Could not load the preview. Try again."); }
+  }
 
   useEffect(() => {
     const tick = () => setNow(new Date());
@@ -141,7 +158,7 @@ export function CollectionEditor({ collection, contacts, defaultDuration, defaul
     <section data-dt="collection-panel">
       <header data-dt="collection-section-heading"><div><Text variant="eyebrow">{collection.status === "live" ? "SHARED AVAILABILITY" : "PRIVATE DRAFT"}</Text><Heading as="h2" size="panel">{collection.name}</Heading><Text variant="muted">Add exact lesson times, just as you would write them in a message.</Text></div><Badge tone={collection.status === "live" ? "success" : "neutral"}>{collection.status === "live" ? "Shared" : "Draft"}</Badge></header>
       <form id="collection-time-form" data-dt="collection-time-form" onSubmit={(event) => void save(event)}>
-        <div><Heading as="h3" size="small">{editingId ? "Edit lesson time" : collection.slots.length ? "Add another time" : "Add a lesson time"}</Heading><Text variant="muted">Each time becomes one lesson option when shared. Add 09:00–12:00, then add 13:00–17:00 on the same date. Your usual lesson length is {defaultDuration} minutes.</Text></div>
+        <div><Heading as="h3" size="small">{editingId ? "Edit lesson time" : collection.slots.length ? "Add another time" : "Add a lesson time"}</Heading><Text variant="muted">Each time becomes one lesson option when shared. Add 09:00–12:00, then add 13:00–17:00 on the same date. Your usual lesson length is {lessonLength(defaultDuration)}.</Text></div>
         <LessonTimePicker date={date} start={start} end={end} defaultDuration={defaultDuration} weekStart={collection.weekStart} now={now} onDateChange={(value) => { setDate(value); setLocalError(null); }} onStartChange={(value) => { moveStart(value); setLocalError(null); }} onEndChange={(value) => { setEnd(value); setLocalError(null); }} />
         <div data-dt="collection-form-actions"><Button type="submit" disabled={busy || !date || !start || Boolean(timeIssue)}>{editingId ? "Save changes" : "Add time to list"}</Button>{!editingId && collection.status === "live" && <Button type="submit" variant="surface" value="open" disabled={busy || !date || !start || Boolean(timeIssue)}>Add and make bookable</Button>}{editingId && <Button type="button" variant="surface" onClick={() => resetForm()}>Cancel edit</Button>}</div>
       </form>
@@ -154,18 +171,22 @@ export function CollectionEditor({ collection, contacts, defaultDuration, defaul
         {[...groups].map(([day, slots]) => <section key={day} data-dt="collection-day"><h3>{displayDate(slots[0].startsAt)}</h3><ul>{slots.map((slot) => {
           const booking = collection.bookings.find((item) => item.slotId === slot.id);
           return <li key={slot.id} data-state={slot.status}><div data-dt="collection-slot-time"><strong>{displayTime(slot.startsAt)}–{displayTime(slot.endsAt)}</strong><Badge tone={slot.status === "booked" ? "warning" : slot.status === "open" ? "success" : "neutral"}>{slot.status === "open" ? "Bookable" : slot.status === "private" ? "Private" : slot.status === "booked" ? "Booked" : "Closed"}</Badge></div>
-            {booking && <small>Booked by {booking.name}</small>}
+            {booking && <small>Booked by {booking.name} · {booking.email}</small>}
+            {booking && onChangeBooking && <div data-dt="collection-booking-actions"><Button type="button" variant="ghost" size="2" disabled={busy} onClick={() => { setChangingBookingId(changingBookingId === booking.id ? null : booking.id); setReplacementSlotId(""); }}>Move lesson</Button><Button type="button" variant="ghost" size="2" disabled={busy} onClick={() => { if (window.confirm(`Cancel ${booking.name}’s lesson? They will be notified if email is connected.`)) void onChangeBooking(booking.id, "cancel"); }}>Cancel lesson</Button></div>}
+            {booking && changingBookingId === booking.id && <div data-dt="collection-booking-move"><SelectField id={`move-${booking.id}`} label="Move to an open time in this week" value={replacementSlotId} onChange={(event) => setReplacementSlotId(event.target.value)}><option value="">Choose a time</option>{collection.slots.filter((candidate) => candidate.status === "open" && new Date(candidate.startsAt) > new Date()).map((candidate) => <option key={candidate.id} value={candidate.id}>{displayDate(candidate.startsAt)} · {displayTime(candidate.startsAt)}–{displayTime(candidate.endsAt)}</option>)}</SelectField><Button type="button" disabled={!replacementSlotId || busy} onClick={() => { if (onChangeBooking) void onChangeBooking(booking.id, "reschedule", replacementSlotId); }}>Confirm move</Button></div>}
             {slot.status !== "booked" && <div data-dt="collection-row-actions"><Button type="button" variant="ghost" size="2" onClick={() => edit(slot)}>Edit</Button>{slot.status === "private" && collection.status === "live" && <Button type="button" variant="ghost" size="2" onClick={() => void onSetStatus(slot.id, "open")}>Make available</Button>}{slot.status === "open" && <Button type="button" variant="ghost" size="2" onClick={() => void onSetStatus(slot.id, "closed")}>Close time</Button>}{slot.status === "closed" && <Button type="button" variant="ghost" size="2" onClick={() => void onSetStatus(slot.id, collection.status === "live" ? "open" : "private")}>Reopen</Button>}</div>}
           </li>;
         })}</ul></section>)}
         {error && errorArea === "list" && <p data-dt="collection-feedback" role="alert">{error}</p>}
         {notice && noticeArea === "list" && <p data-dt="collection-feedback" role="status">{notice}</p>}
       </div>
-      <details data-dt="collection-generator"><summary>Or split a wider range into lesson times</summary><form onSubmit={(event) => { event.preventDefault(); void onGenerate({ date: rangeDate, from: rangeFrom, to: rangeTo, duration: rangeDuration, gap: rangeGap }); }}><Text variant="muted">For example, split 09:00–17:00 into {defaultDuration}-minute lessons with a {defaultGap}-minute gap. Edit any suggested time afterwards.</Text><div data-dt="collection-generator-fields"><Field id="range-date" label="Date" type="date" value={rangeDate} min={rangeMin} max={rangeMax} required onChange={(event) => setRangeDate(event.target.value)} /><Field id="range-from" label="From" type="time" value={rangeFrom} required onChange={(event) => setRangeFrom(event.target.value)} /><Field id="range-to" label="Until" type="time" value={rangeTo} required onChange={(event) => setRangeTo(event.target.value)} /><Field id="range-duration" label="Lesson minutes" type="number" min={15} max={480} value={rangeDuration} onChange={(event) => setRangeDuration(Number(event.target.value))} /><Field id="range-gap" label="Gap minutes" type="number" min={0} max={120} value={rangeGap} onChange={(event) => setRangeGap(Number(event.target.value))} /></div><Button type="submit" variant="surface" disabled={busy}>Generate times</Button></form></details>
+      <details data-dt="collection-generator"><summary>Or split a wider range into lesson times</summary><form onSubmit={(event) => { event.preventDefault(); void onGenerate({ date: rangeDate, from: rangeFrom, to: rangeTo, duration: rangeDuration, gap: rangeGap }); }}><Text variant="muted">For example, split 09:00–17:00 into {lessonLength(defaultDuration)} lessons with a {defaultGap}-minute gap. Edit any suggested time afterwards.</Text><div data-dt="collection-generator-fields"><Field id="range-date" label="Date" type="date" value={rangeDate} min={rangeMin} max={rangeMax} required onChange={(event) => setRangeDate(event.target.value)} /><Field id="range-from" label="From" type="time" value={rangeFrom} required onChange={(event) => setRangeFrom(event.target.value)} /><Field id="range-to" label="Until" type="time" value={rangeTo} required onChange={(event) => setRangeTo(event.target.value)} /><Field id="range-duration" label="Lesson minutes" type="number" min={15} max={480} value={rangeDuration} onChange={(event) => setRangeDuration(Number(event.target.value))} /><Field id="range-gap" label="Gap minutes" type="number" min={0} max={120} value={rangeGap} onChange={(event) => setRangeGap(Number(event.target.value))} /></div><Button type="submit" variant="surface" disabled={busy}>Generate times</Button></form></details>
       {error && errorArea === "generator" && <p data-dt="collection-feedback" role="alert">{error}</p>}
       {notice && noticeArea === "generator" && <p data-dt="collection-feedback" role="status">{notice}</p>}
     </section>
     <aside data-dt="collection-share">
+      <section data-dt="collection-preview-controls"><Heading as="h3" size="small">See what people will see</Heading><Text variant="muted">Preview this week before sending it. Draft previews show the times you are preparing to share.</Text><div><Button type="button" variant="surface" onClick={() => void showPreview("invitation")}>Personal invitation</Button><Button type="button" variant="surface" onClick={() => void showPreview("general")}>General link</Button></div>{previewError && <p role="alert">{previewError}</p>}</section>
+      {preview && <section data-dt="collection-preview"><div><strong>Preview only · no booking can be made here</strong><Button type="button" variant="ghost" onClick={() => setPreview(null)}>Close</Button></div><PublicCollectionPicker collection={preview} onRequestAccess={async () => {}} onBook={async () => {}} busy={false} error={null} notice={null} preview /></section>}
       <div data-dt="collection-section-heading"><Text variant="eyebrow">{collection.status === "live" ? "INVITATIONS" : "WHEN YOU ARE READY"}</Text><Heading as="h3" size="panel">{collection.status === "live" ? "Invite another person" : "Share this list"}</Heading><Text variant="muted">Only the times you make available appear to people you invite. A booked time disappears from everyone else’s choices.</Text></div>
       <form data-dt="collection-invite-form" onSubmit={(event) => void invite(event)}>
         {contacts.length > 0 && <SelectField id="existing-contact" label="Choose someone already known" value={contact} onChange={(event) => { setContact(event.target.value); const found = contacts.find((item) => item.email === event.target.value); if (found) { setInviteName(found.name); setInviteEmail(found.email); } }}><option value="">Or enter a new person below</option>{contacts.map((item) => <option key={item.email} value={item.email}>{item.name} · {item.email}</option>)}</SelectField>}
@@ -184,13 +205,19 @@ export function CollectionEditor({ collection, contacts, defaultDuration, defaul
   </div>;
 }
 
-export type PublicCollection = { collectionName: string; instructorName: string; timezone: string; name: string | null; kind: "invitation" | "access" | "general"; slots: { id: string; startsAt: string; endsAt: string }[]; ownBookings: { id: string; startsAt: string; endsAt: string }[] };
+export type PublicCollection = { collectionId?: string; collectionName: string; instructorName: string; instructorEmail?: string; contactPhone?: string | null; timezone: string; name: string | null; kind: "invitation" | "access" | "general"; slots: { id: string; startsAt: string; endsAt: string }[]; ownBookings: { id: string; startsAt: string; endsAt: string }[] };
 
-export function PublicCollectionPicker({ collection, onRequestAccess, onBook, busy, error, notice }: {
-  collection: PublicCollection; onRequestAccess: (name: string, email: string) => Promise<void>; onBook: (slotId: string) => Promise<void>; busy: boolean; error: string | null; notice: string | null;
+export function PublicCollectionPicker({ collection, onRequestAccess, onBook, onChangeBooking, busy, error, notice, preview = false }: {
+  collection: PublicCollection; onRequestAccess: (name: string, email: string) => Promise<void>; onBook: (slotId: string) => Promise<void>;
+  onChangeBooking?: (bookingId: string, action: "cancel" | "reschedule", slotId?: string) => Promise<void>;
+  busy: boolean; error: string | null; notice: string | null; preview?: boolean;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [changingId, setChangingId] = useState<string | null>(null);
+  const [replacement, setReplacement] = useState("");
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => { const timer = window.setTimeout(() => setNow(new Date()), 0); return () => window.clearTimeout(timer); }, []);
   const dates = new Map<string, typeof collection.slots>();
   const dayFormat = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: collection.timezone });
   const timeFormat = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: collection.timezone });
@@ -199,10 +226,17 @@ export function PublicCollectionPicker({ collection, onRequestAccess, onBook, bu
     dates.set(day, [...(dates.get(day) ?? []), slot]);
   }
   return <main data-dt="public-collection">
-    <header><Text variant="eyebrow">DRIVETRACK · LESSON TIMES</Text><Heading as="h1" size="section">Choose a lesson with {collection.instructorName}</Heading><Text variant="muted">{collection.collectionName}. Only currently available times are shown.</Text></header>
-    {collection.ownBookings.length > 0 && <section data-dt="public-own-bookings"><Heading as="h2" size="small">Your confirmed lessons</Heading>{collection.ownBookings.map((booking) => <p key={booking.id}>{dayFormat.format(new Date(booking.startsAt))}, {timeFormat.format(new Date(booking.startsAt))}–{timeFormat.format(new Date(booking.endsAt))}</p>)}</section>}
-    {dates.size === 0 ? <EmptyState title="No lesson times available right now" description="Please check this link again later or contact your instructor." /> : <section data-dt="public-collection-times"><Heading as="h2" size="panel">Available times</Heading>{[...dates].map(([day, slots]) => <div key={day} data-dt="public-collection-day"><h3>{day}</h3><div>{slots.map((slot) => <Button key={slot.id} type="button" variant="surface" disabled={busy || collection.kind === "general"} onClick={() => void onBook(slot.id)}>{timeFormat.format(new Date(slot.startsAt))}–{timeFormat.format(new Date(slot.endsAt))}</Button>)}</div></div>)}</section>}
-    {collection.kind === "general" && <form data-dt="public-verify-form" onSubmit={(event) => { event.preventDefault(); void onRequestAccess(name.trim(), email.trim()); }}><Heading as="h2" size="panel">Confirm your email to book</Heading><Text variant="muted">We’ll send a personal link to this address. Your instructor’s other appointments stay private.</Text><Field id="booker-name" label="Your name" value={name} required onChange={(event) => setName(event.target.value)} /><Field id="booker-email" label="Your email" type="email" value={email} required onChange={(event) => setEmail(event.target.value)} /><Button type="submit" disabled={busy}>Send my booking link</Button></form>}
+    <header><Text variant="eyebrow">DRIVETRACK · LESSON TIMES</Text><Heading as="h1" size="section">Choose a lesson with {collection.instructorName}</Heading><Text variant="muted">{collection.collectionName}. {preview ? "This is how the available times will appear." : "Only currently available times are shown."}</Text></header>
+    {collection.ownBookings.length > 0 && <section data-dt="public-own-bookings"><Heading as="h2" size="small">Your confirmed lessons</Heading>{collection.ownBookings.map((booking) => {
+      const canChange = now && new Date(booking.startsAt).getTime() - now.getTime() >= 48 * 3_600_000;
+      return <div key={booking.id} data-dt="public-booking-row"><strong>{dayFormat.format(new Date(booking.startsAt))}, {timeFormat.format(new Date(booking.startsAt))}–{timeFormat.format(new Date(booking.endsAt))}</strong>
+        {!preview && canChange && onChangeBooking && <div data-dt="public-booking-actions"><Button type="button" variant="surface" disabled={busy} onClick={() => { setChangingId(changingId === booking.id ? null : booking.id); setReplacement(""); }}>Change time</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => { if (window.confirm("Cancel this lesson? The time may become bookable again.")) void onChangeBooking(booking.id, "cancel"); }}>Cancel lesson</Button></div>}
+        {!preview && now && !canChange && <Text variant="muted">This lesson is within 48 hours. Contact your instructor to make a change: {collection.instructorEmail ?? "use your invitation email"}{collection.contactPhone ? ` · ${collection.contactPhone}` : ""}.</Text>}
+        {changingId === booking.id && canChange && <div data-dt="public-reschedule"><SelectField id={`replacement-${booking.id}`} label="Choose a new available time" value={replacement} onChange={(event) => setReplacement(event.target.value)}><option value="">Select a time</option>{collection.slots.map((slot) => <option key={slot.id} value={slot.id}>{dayFormat.format(new Date(slot.startsAt))}, {timeFormat.format(new Date(slot.startsAt))}–{timeFormat.format(new Date(slot.endsAt))}</option>)}</SelectField><Button type="button" disabled={!replacement || busy} onClick={() => { if (onChangeBooking) void onChangeBooking(booking.id, "reschedule", replacement); }}>Confirm new time</Button></div>}
+      </div>;
+    })}</section>}
+    {dates.size === 0 ? <EmptyState title="No lesson times available right now" description="Please check this link again later or contact your instructor." /> : <section data-dt="public-collection-times"><Heading as="h2" size="panel">Available times</Heading>{[...dates].map(([day, slots]) => <div key={day} data-dt="public-collection-day"><h3>{day}</h3><div>{slots.map((slot) => <Button key={slot.id} type="button" variant="surface" disabled={preview || busy || collection.kind === "general"} onClick={() => void onBook(slot.id)}>{timeFormat.format(new Date(slot.startsAt))}–{timeFormat.format(new Date(slot.endsAt))}</Button>)}</div></div>)}</section>}
+    {collection.kind === "general" && <form data-dt="public-verify-form" onSubmit={(event) => { event.preventDefault(); if (!preview) void onRequestAccess(name.trim(), email.trim()); }}><Heading as="h2" size="panel">Confirm your email to book</Heading><Text variant="muted">We’ll send a personal link to this address. Your instructor’s other appointments stay private.</Text><Field id="booker-name" label="Your name" value={name} required disabled={preview} onChange={(event) => setName(event.target.value)} /><Field id="booker-email" label="Your email" type="email" value={email} required disabled={preview} onChange={(event) => setEmail(event.target.value)} /><Button type="submit" disabled={preview || busy}>Send my booking link</Button></form>}
     {error && <p data-dt="collection-feedback" role="alert">{error}</p>}
     {notice && <p data-dt="collection-feedback" role="status">{notice}</p>}
   </main>;

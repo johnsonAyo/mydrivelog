@@ -66,6 +66,7 @@ describe("availability list editor", () => {
       onGenerate={async () => {}}
       onInvite={async () => {}}
       onGeneralLink={async () => {}}
+      onPreview={async () => ({ collectionName: "", instructorName: "", timezone: "Europe/London", name: null, kind: "general", slots: [], ownBookings: [] })}
       generalUrl={null}
       lastInvitation={null}
       busy={false}
@@ -92,6 +93,7 @@ describe("availability list editor", () => {
       onGenerate={async () => {}}
       onInvite={async () => {}}
       onGeneralLink={async () => {}}
+      onPreview={async () => ({ collectionName: "", instructorName: "", timezone: "Europe/London", name: null, kind: "general", slots: [], ownBookings: [] })}
       generalUrl={null}
       lastInvitation={null}
       busy={false}

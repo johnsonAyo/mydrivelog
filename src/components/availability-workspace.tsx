@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CollectionChooser, CollectionEditor, EmptyState, Stack, TrialNotice, type CollectionDetail, type CollectionFeedbackArea, type CollectionSummary, type ContactOption, type SchedulingSettings, type SlotInput } from "@drivetrack/ui";
+import { CollectionChooser, CollectionEditor, EmptyState, Stack, TrialNotice, type CollectionDetail, type CollectionFeedbackArea, type CollectionSummary, type ContactOption, type PublicCollection, type SchedulingSettings, type SlotInput } from "@drivetrack/ui";
 import { generateExactSlots } from "@/domain/collections/slot-policy";
 import { addCalendarDays, mondayOf, weekLabel, weeksTouchingMonth } from "@/domain/collections/week";
 
@@ -161,10 +161,19 @@ function AvailabilityWorkspaceContent({ trialEndsAt, paidThrough, renderedAt, in
     });
   }
 
+  async function changeBooking(bookingId: string, action: "cancel" | "reschedule", slotId?: string) {
+    await execute("list", async () => {
+      const result = await jsonRequest<{ data: { emailStatus: { learner: string; instructor: string } } }>(`/api/v1/collections/${activeId}/bookings/${bookingId}`, "POST", { action, slotId });
+      await refresh();
+      const delivered = result.data.emailStatus.learner === "sent" && result.data.emailStatus.instructor === "sent";
+      setNotice({ area: "list", message: `${action === "cancel" ? "Lesson cancelled" : "Lesson moved"}. Calendar updated.${delivered ? " Both people were emailed." : " Email was not delivered to everyone; please contact the learner directly."}` });
+    });
+  }
+
   return <Stack gap="5">
     {!testingWorkspace && <TrialNotice endsAt={trialEndsAt} paidThrough={paidThrough} now={renderedAt} />}
     {index.isError ? <EmptyState title="Availability unavailable" description="We couldn’t load your lists. Try refreshing the page." /> : <CollectionChooser weeks={weeks} earlierLists={collections.filter((collection) => !collection.weekStart)} monthLabel={monthLabel} selectedId={activeId} onPreviousMonth={() => moveMonth(-1)} onNextMonth={() => moveMonth(1)} onCreate={create} onSelect={selectCollection} busy={creating || !active} error={error?.area === "create" ? error.message : null} />}
     {!activeId && !index.isLoading && !index.isError && <EmptyState title="Choose a week to begin" description="Select Plan week above. Add one or more lesson times, save them privately, and share when you are ready." />}
-    {activeId && (detail.data ? <CollectionEditor key={`${activeId}-${settings.data?.defaultSessionMinutes ?? 120}-${settings.data?.bufferWarningMinutes ?? 30}`} collection={detail.data} contacts={index.data?.contacts ?? []} defaultDuration={settings.data?.defaultSessionMinutes ?? 120} defaultGap={settings.data?.bufferWarningMinutes ?? 30} onSaveSlot={saveSlot} onSetStatus={setStatus} onGenerate={generate} onInvite={invite} onGeneralLink={makeGeneralLink} generalUrl={generalUrl} lastInvitation={lastInvitation} busy={editing || !active} error={error?.area !== "create" ? error?.message ?? null : null} errorArea={error?.area !== "create" ? error?.area ?? null : null} notice={notice?.message ?? null} noticeArea={notice?.area !== "create" ? notice?.area ?? null : null} /> : detail.isError ? <EmptyState title="Could not open this list" description="Please choose it again or refresh the page." /> : <p>Opening your time list…</p>)}
+    {activeId && (detail.data ? <CollectionEditor key={`${activeId}-${settings.data?.defaultSessionMinutes ?? 120}-${settings.data?.bufferWarningMinutes ?? 30}`} collection={detail.data} contacts={index.data?.contacts ?? []} defaultDuration={settings.data?.defaultSessionMinutes ?? 120} defaultGap={settings.data?.bufferWarningMinutes ?? 30} onSaveSlot={saveSlot} onSetStatus={setStatus} onGenerate={generate} onInvite={invite} onGeneralLink={makeGeneralLink} onChangeBooking={changeBooking} onPreview={async (kind): Promise<PublicCollection> => { const response = await fetch(`/api/v1/collections/${activeId}/preview?kind=${kind}`, { cache: "no-store" }); if (!response.ok) throw new Error("Preview unavailable"); const json: { data: PublicCollection } = await response.json(); return json.data; }} generalUrl={generalUrl} lastInvitation={lastInvitation} busy={editing || !active} error={error?.area !== "create" ? error?.message ?? null : null} errorArea={error?.area !== "create" ? error?.area ?? null : null} notice={notice?.message ?? null} noticeArea={notice?.area !== "create" ? notice?.area ?? null : null} /> : detail.isError ? <EmptyState title="Could not open this list" description="Please choose it again or refresh the page." /> : <p>Opening your time list…</p>)}
   </Stack>;
 }
