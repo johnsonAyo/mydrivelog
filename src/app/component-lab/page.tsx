@@ -39,7 +39,7 @@ export default function ComponentLab() {
     <Showcase>
       <ShowcaseIntro
         title="Build the pieces first."
-        description="This is a visual component lab, not a live instructor workspace. Calendar, lesson, and debrief examples below use sample data; only availability has a migrated API at this milestone."
+        description="This is a visual component lab, not a live instructor workspace. The examples below use sample data. Open Calendar for the working availability and booking flow."
       />
       <Inline>
         <a data-dt="button" href="/calendar">Open the live Calendar</a>
@@ -95,7 +95,7 @@ export default function ComponentLab() {
         </ShowcaseGrid>
       </ShowcaseSection>
 
-      <ShowcaseSection id="release" title="Releases and bookings" description="A release previews exactly what is selected. Booking and buffer feedback stay distinct from calendar layout; these use sample data until their workflows exist.">
+      <ShowcaseSection id="release" title="Releases and bookings" description="These are isolated examples of the earlier window model. The live availability-list booking flow is in Calendar.">
         <SchedulingNotice title="Short travel gap" description="Only 20 minutes between these lessons. Your preferred buffer is 30 minutes; you can still continue." />
         <ShowcaseGrid>
           <AvailabilityReleaseSummary

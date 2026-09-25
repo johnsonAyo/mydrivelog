@@ -1,6 +1,8 @@
 export { Container, Surface, Stack, Inline, Heading, Text, Button, Badge, Field, SelectField, TextareaField, EmptyState } from "./primitives";
 export type { Space, Tone, Variant, Size } from "./primitives";
 export { ProductShell } from "./product-shell";
+export { CollectionChooser, CollectionEditor, PublicCollectionPicker } from "./collections";
+export type { CollectionSummary, CollectionDetail, CollectionSlot, ContactOption, SlotInput, PublicCollection } from "./collections";
 export { AvailabilitySlotCard, AvailabilityCalendar, AvailabilityEditor, AvailabilityForm } from "./availability";
 export { SchedulingSettingsForm, AvailabilityWindowPanel, PublicBookingPicker } from "./booking";
 export type { SchedulingSettings, WindowDetail, ReleasedLink, PublicBooking } from "./booking";

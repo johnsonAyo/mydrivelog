@@ -152,3 +152,76 @@ export const bookings = pgTable("bookings", {
   index("bookings_workspace_start_idx").on(table.workspaceId, table.startsAt),
   check("bookings_positive_duration", sql`${table.endsAt} > ${table.startsAt}`),
 ]);
+
+// Exact lesson times are grouped into editable drafts. The earlier window tables
+// remain for existing data while the collection workflow replaces them in the UI.
+export const availabilityCollections = pgTable("availability_collections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  status: text("status").notNull().default("draft"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index("availability_collections_workspace_idx").on(table.workspaceId, table.updatedAt)]);
+
+export const collectionSlots = pgTable("collection_slots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  collectionId: uuid("collection_id").notNull().references(() => availabilityCollections.id, { onDelete: "cascade" }),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+  status: text("status").notNull().default("private"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("collection_slots_collection_start_idx").on(table.collectionId, table.startsAt),
+  check("collection_slots_positive_duration", sql`${table.endsAt} > ${table.startsAt}`),
+  check("collection_slots_valid_status", sql`${table.status} in ('private', 'open', 'booked', 'closed')`),
+]);
+
+export const collectionInvitations = pgTable("collection_invitations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  collectionId: uuid("collection_id").notNull().references(() => availabilityCollections.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  emailStatus: text("email_status").notNull().default("not_sent"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("collection_invitations_token_unique").on(table.tokenHash),
+  uniqueIndex("collection_invitations_email_unique").on(table.collectionId, sql`lower(${table.email})`),
+]);
+
+export const collectionGeneralLinks = pgTable("collection_general_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  collectionId: uuid("collection_id").notNull().references(() => availabilityCollections.id, { onDelete: "cascade" }),
+  token: text("token").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("collection_general_links_collection_unique").on(table.collectionId),
+  uniqueIndex("collection_general_links_token_unique").on(table.tokenHash),
+]);
+
+export const collectionGeneralAccess = pgTable("collection_general_access", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  collectionId: uuid("collection_id").notNull().references(() => availabilityCollections.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex("collection_general_access_token_unique").on(table.tokenHash)]);
+
+export const collectionBookings = pgTable("collection_bookings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  collectionId: uuid("collection_id").notNull().references(() => availabilityCollections.id, { onDelete: "restrict" }),
+  slotId: uuid("slot_id").notNull().references(() => collectionSlots.id, { onDelete: "restrict" }),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  status: text("status").notNull().default("confirmed"),
+  confirmationEmailStatus: text("confirmation_email_status").notNull().default("not_sent"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index("collection_bookings_collection_idx").on(table.collectionId),
+  uniqueIndex("collection_bookings_one_active_per_slot").on(table.slotId).where(sql`${table.status} = 'confirmed'`),
+]);

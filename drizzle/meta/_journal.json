@@ -22,6 +22,20 @@
       "when": 1790289661203,
       "tag": "0002_fat_famine",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790316842985,
+      "tag": "0003_aberrant_eternity",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790316895539,
+      "tag": "0004_adorable_shriek",
+      "breakpoints": true
     }
   ]
 }
