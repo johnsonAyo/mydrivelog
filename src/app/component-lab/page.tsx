@@ -59,7 +59,7 @@ export default function ComponentLab() {
         </Surface>
       </ShowcaseSection>
 
-      <ShowcaseSection id="access" title="Access and trial" description="Isolated signup and entitlement states. Forms are disabled in this lab; the live flow lives at Get started.">
+      <ShowcaseSection id="access" title="Access and pilot" description="Isolated signup and entitlement states. Forms are disabled in this lab; the live flow lives at Get started.">
         <ShowcaseGrid>
           <EmailAccessForm disabled />
           <Stack gap="4">

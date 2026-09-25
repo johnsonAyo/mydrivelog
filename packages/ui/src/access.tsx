@@ -25,8 +25,8 @@ export function EmailAccessForm({ mode = "start", disabled = false }: { mode?: "
   return (
     <section data-dt="access-card" aria-labelledby="access-title">
       <Badge tone="brand">Solo workspace</Badge>
-      <Heading as="h1" size="section" id="access-title">{mode === "start" ? "Start your 14-day pilot." : "Welcome back."}</Heading>
-      <Text variant="muted">{mode === "start" ? "Explore the instructor workspace for 14 days. No card required. Solo is £24 per month after the pilot, with no learner cap." : "Enter your email and we’ll send you a secure sign-in link."}</Text>
+      <Heading as="h1" size="section" id="access-title">{mode === "start" ? "Start your pilot." : "Welcome back."}</Heading>
+      <Text variant="muted">{mode === "start" ? "Plan availability, share bookable times, and keep every lesson on track in one instructor workspace." : "Enter your email and we’ll send you a secure sign-in link."}</Text>
       {state === "sent" ? (
         <div data-dt="access-feedback" role="status">
           <strong>Check your inbox.</strong>
