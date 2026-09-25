@@ -1,7 +1,9 @@
-export { Container, Surface, Stack, Inline, Heading, Text, Button, Badge, Field, TextareaField, EmptyState } from "./primitives";
+export { Container, Surface, Stack, Inline, Heading, Text, Button, Badge, Field, SelectField, TextareaField, EmptyState } from "./primitives";
 export type { Space, Tone, Variant, Size } from "./primitives";
 export { ProductShell } from "./product-shell";
 export { AvailabilitySlotCard, AvailabilityCalendar, AvailabilityEditor, AvailabilityForm } from "./availability";
+export { SchedulingSettingsForm, AvailabilityWindowPanel, PublicBookingPicker } from "./booking";
+export type { SchedulingSettings, WindowDetail, ReleasedLink, PublicBooking } from "./booking";
 export { TodayTimeline, LessonContextCard, DebriefComposer } from "./lessons";
 export { SchedulingNotice, AvailabilityReleaseSummary, BookingSummaryCard } from "./operations";
 export type { CalendarSlot, TimelineLesson } from "./models";

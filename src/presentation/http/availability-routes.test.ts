@@ -142,6 +142,8 @@ describe("availability HTTP contract", () => {
         startsAt: "2026-10-05T09:00:00.000Z",
         endsAt: "2026-10-05T11:00:00.000Z",
         status: "open",
+        sessionMinutes: 120,
+        bufferMinutes: 30,
       },
       warnings: [
         {

@@ -8,6 +8,8 @@ export type PersistAvailabilityInput = {
   readonly workspaceId: string;
   readonly startsAt: Date;
   readonly endsAt: Date;
+  readonly sessionMinutes?: number;
+  readonly bufferMinutes?: number;
 };
 
 export type PersistAvailabilityResult =

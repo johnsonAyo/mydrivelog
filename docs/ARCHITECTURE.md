@@ -20,17 +20,17 @@ DriveTrack is one Next.js application and deployment with four explicit layers:
 - **Domain** — scheduling and booking policy expressed without framework dependencies.
 - **Infrastructure** — PostgreSQL repositories, provider adapters, logging, and runtime composition.
 
-Dependencies point inward. Presentation and infrastructure may depend on application/domain contracts; domain code does not know about either.
+Domain dependencies point inward: domain code knows nothing about Next.js, PostgreSQL, or email. App Router handlers are runtime composition roots and wire the application rules, repositories, and email adapter; they own HTTP validation and response mapping.
 
 Product components live in `packages/ui` and accept view models and action slots. They do not import repositories, fetch APIs, or own route state. Tokens live in `packages/tokens`; the approved landing page remains a separate presentation surface in the same app.
 
-## First vertical slice
+## Live scheduling slice
 
-Health, readiness, and availability GET/POST/export routes exist today. Availability creation calculates an explicit end time from the workspace default when none is supplied, rejects overlap, and returns advisory buffer warnings. PostgreSQL carries a second overlap guarantee to protect concurrent requests. Calendar is the first live page and reads and writes these routes against the development database.
+Health, readiness, availability GET/POST/export, availability detail/edit/release, scheduling settings, public booking, and instructor booking-list routes exist today. Availability creation calculates an explicit end time from the workspace default when none is supplied, rejects overlap, and returns advisory buffer warnings. PostgreSQL carries a second overlap guarantee to protect concurrent requests. Each availability window snapshots lesson duration and travel buffer. The pure booking policy generates candidate times; the PostgreSQL transaction locks a window, checks the recipient and weekly allowance, and claims one of those times. A unique index provides an additional concurrent-claim guarantee. Calendar and scheduling settings are live database-backed pages; public links are recipient-specific and stored as token hashes.
 
 ## Authentication boundary
 
-In local development only, `DEV_WORKSPACE_ID` resolves a seeded workspace through the same database-backed availability routes, without a cookie or trial gate. It is disabled outside `NODE_ENV=development`. Otherwise business endpoints require an opaque session cookie whose hash resolves to an active instructor and workspace; expired unpaid workspaces are read-only. The provisional email-link issuance and verification flow exists, but production authentication remains undecided. There are no booking, release, notes, or debrief endpoints. Their isolated components in `/component-lab` are examples, not working features.
+In local development only, `DEV_WORKSPACE_ID` resolves a seeded workspace through the same database-backed routes, without a cookie or trial gate. It is disabled outside `NODE_ENV=development`. Otherwise instructor endpoints require an opaque session cookie whose hash resolves to an active instructor and workspace; expired unpaid workspaces are read-only. The recipient-specific public booking endpoint is protected by its high-entropy link token. The provisional email-link issuance and verification flow exists, but production authentication remains undecided. Notes and debrief endpoints do not exist yet; their isolated components in `/component-lab` are examples, not working features.
 
 ## Intended composition order
 

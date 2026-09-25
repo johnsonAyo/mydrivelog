@@ -98,6 +98,15 @@ export function Field({
   );
 }
 
+export function SelectField({ label, hint, id, children, ...props }: Omit<ComponentProps<"select">, "id"> & { id: string; label: string; hint?: string }) {
+  const hintId = hint ? `${id}-hint` : undefined;
+  return <div data-dt="field">
+    <label htmlFor={id}>{label}</label>
+    <select id={id} aria-describedby={hintId} {...props}>{children}</select>
+    {hint && <small id={hintId}>{hint}</small>}
+  </div>;
+}
+
 export function TextareaField({
   label,
   hint,

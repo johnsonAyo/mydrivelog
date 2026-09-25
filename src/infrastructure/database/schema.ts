@@ -104,6 +104,8 @@ export const availabilitySlots = pgTable(
       .references(() => workspaces.id, { onDelete: "cascade" }),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    sessionMinutes: integer("session_minutes").notNull().default(120),
+    bufferMinutes: integer("buffer_minutes").notNull().default(30),
     status: availabilityStatus("status").notNull().default("open"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -111,5 +113,42 @@ export const availabilitySlots = pgTable(
   (table) => [
     index("availability_slots_workspace_start_idx").on(table.workspaceId, table.startsAt),
     check("availability_slots_positive_duration", sql`${table.endsAt} > ${table.startsAt}`),
+    check("availability_slots_session_minutes_positive", sql`${table.sessionMinutes} > 0`),
+    check("availability_slots_buffer_minutes_nonnegative", sql`${table.bufferMinutes} >= 0`),
   ],
 );
+
+export const availabilityReleases = pgTable("availability_releases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  availabilityId: uuid("availability_id").notNull().references(() => availabilitySlots.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("published"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index("availability_releases_window_idx").on(table.availabilityId)]);
+
+export const releaseRecipients = pgTable("release_recipients", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  releaseId: uuid("release_id").notNull().references(() => availabilityReleases.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  emailStatus: text("email_status").notNull().default("not_sent"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [uniqueIndex("release_recipients_token_unique").on(table.tokenHash)]);
+
+export const bookings = pgTable("bookings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  availabilityId: uuid("availability_id").notNull().references(() => availabilitySlots.id, { onDelete: "restrict" }),
+  recipientId: uuid("recipient_id").notNull().references(() => releaseRecipients.id, { onDelete: "restrict" }),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+  status: text("status").notNull().default("confirmed"),
+  confirmationEmailStatus: text("confirmation_email_status").notNull().default("not_sent"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("bookings_window_start_unique").on(table.availabilityId, table.startsAt),
+  index("bookings_workspace_start_idx").on(table.workspaceId, table.startsAt),
+  check("bookings_positive_duration", sql`${table.endsAt} > ${table.startsAt}`),
+]);

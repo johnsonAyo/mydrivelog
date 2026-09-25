@@ -13,6 +13,8 @@ import { problem } from "./problem";
 const createAvailabilitySchema = z.object({
   startsAt: z.iso.datetime({ offset: true }),
   endsAt: z.iso.datetime({ offset: true }).optional(),
+  sessionMinutes: z.number().int().min(15).max(480).optional(),
+  bufferMinutes: z.number().int().min(0).max(120).optional(),
 });
 
 const rangeSchema = z.object({
@@ -106,6 +108,8 @@ export function availabilityRoutes(dependencies: AvailabilityRouteDependencies) 
           workspaceId: authentication.session.workspaceId,
           startsAt: new Date(parsed.data.startsAt),
           ...(parsed.data.endsAt ? { endsAt: new Date(parsed.data.endsAt) } : {}),
+          ...(parsed.data.sessionMinutes !== undefined ? { sessionMinutes: parsed.data.sessionMinutes } : {}),
+          ...(parsed.data.bufferMinutes !== undefined ? { bufferMinutes: parsed.data.bufferMinutes } : {}),
         });
 
         if (!result.ok) {
@@ -137,16 +141,20 @@ type AvailabilityResponse = {
   readonly startsAt: string;
   readonly endsAt: string;
   readonly status: "open";
+  readonly sessionMinutes?: number;
+  readonly bufferMinutes?: number;
 };
 
 function serializeSlot(
-  slot: Pick<AvailabilitySlot, "id" | "startsAt" | "endsAt" | "status">,
+  slot: Pick<AvailabilitySlot, "id" | "startsAt" | "endsAt" | "status" | "sessionMinutes" | "bufferMinutes">,
 ): AvailabilityResponse {
   return {
     id: slot.id,
     startsAt: slot.startsAt.toISOString(),
     endsAt: slot.endsAt.toISOString(),
     status: slot.status,
+    sessionMinutes: slot.sessionMinutes,
+    bufferMinutes: slot.bufferMinutes,
   };
 }
 

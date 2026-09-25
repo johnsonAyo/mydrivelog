@@ -6,6 +6,8 @@ type CreateAvailabilityInput = {
   readonly workspaceId: string;
   readonly startsAt: Date;
   readonly endsAt?: Date;
+  readonly sessionMinutes?: number;
+  readonly bufferMinutes?: number;
 };
 
 export type CreateAvailabilityResult =
@@ -34,7 +36,13 @@ export function createAvailabilityUseCase(repository: AvailabilityRepository) {
         return { ok: false, reason: "workspace_not_ready" };
       }
 
-      const initialPlan = planAvailability({ ...input, policy, nearbySlots: [] });
+      const sessionMinutes = input.sessionMinutes ?? policy.defaultSessionMinutes;
+      const bufferMinutes = input.bufferMinutes ?? policy.bufferWarningMinutes;
+      if (!Number.isInteger(sessionMinutes) || sessionMinutes < 15 || sessionMinutes > 480 || !Number.isInteger(bufferMinutes) || bufferMinutes < 0 || bufferMinutes > 120) {
+        return { ok: false, reason: "invalid_duration" };
+      }
+      const effectivePolicy = { ...policy, defaultSessionMinutes: sessionMinutes, bufferWarningMinutes: bufferMinutes };
+      const initialPlan = planAvailability({ ...input, policy: effectivePolicy, nearbySlots: [] });
       if (!initialPlan.ok) {
         return { ok: false, reason: initialPlan.error.code };
       }
@@ -44,7 +52,7 @@ export function createAvailabilityUseCase(repository: AvailabilityRepository) {
         initialPlan.value.startsAt,
         initialPlan.value.endsAt,
       );
-      const plan = planAvailability({ ...input, policy, nearbySlots });
+      const plan = planAvailability({ ...input, policy: effectivePolicy, nearbySlots });
 
       if (!plan.ok) {
         return plan.error.code === "overlap"
@@ -60,6 +68,8 @@ export function createAvailabilityUseCase(repository: AvailabilityRepository) {
         workspaceId: input.workspaceId,
         startsAt: plan.value.startsAt,
         endsAt: plan.value.endsAt,
+        sessionMinutes,
+        bufferMinutes,
       });
 
       if (!persisted.ok) {
@@ -73,6 +83,8 @@ export function createAvailabilityUseCase(repository: AvailabilityRepository) {
           startsAt: persisted.slot.startsAt,
           endsAt: persisted.slot.endsAt,
           status: persisted.slot.status,
+          sessionMinutes,
+          bufferMinutes,
         },
         warnings: plan.value.warnings,
       };

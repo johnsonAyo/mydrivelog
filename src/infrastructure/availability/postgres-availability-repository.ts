@@ -70,6 +70,8 @@ export const postgresAvailabilityRepository: AvailabilityRepository = {
                     startsAt: availabilitySlots.startsAt,
                     endsAt: availabilitySlots.endsAt,
                     status: availabilitySlots.status,
+                    sessionMinutes: availabilitySlots.sessionMinutes,
+                    bufferMinutes: availabilitySlots.bufferMinutes,
                   });
 
                 if (!slot) {
@@ -105,6 +107,8 @@ export const postgresAvailabilityRepository: AvailabilityRepository = {
         startsAt: availabilitySlots.startsAt,
         endsAt: availabilitySlots.endsAt,
         status: availabilitySlots.status,
+        sessionMinutes: availabilitySlots.sessionMinutes,
+        bufferMinutes: availabilitySlots.bufferMinutes,
       })
       .from(availabilitySlots)
       .where(

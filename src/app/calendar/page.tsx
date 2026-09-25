@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, SlidersHorizontal } from "lucide-react";
 import { ProductShell } from "@drivetrack/ui";
 import { AvailabilityWorkspace } from "@/components/availability-workspace";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
@@ -20,9 +20,9 @@ export default async function CalendarPage() {
   return (
     <ProductShell
       brand="DriveTrack"
-      navigation={[{ href: "/calendar", label: "Calendar", icon: <CalendarDays size={17} />, active: true }]}
+      navigation={[{ href: "/calendar", label: "Calendar", icon: <CalendarDays size={17} />, active: true }, { href: "/settings/scheduling", label: "Scheduling", icon: <SlidersHorizontal size={17} /> }]}
       title="Your calendar"
-      description="Plan your teaching week and create lesson slots."
+      description="Create availability, share booking links, and see confirmed lessons."
       identity="Independent instructor workspace"
     >
       <AvailabilityWorkspace
