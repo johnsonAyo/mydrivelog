@@ -1,13 +1,42 @@
 type EmailResult = "sent" | "failed" | "not_configured";
 
+function parseSender(from: string): { name: string; email: string } {
+  const match = from.match(/^(?:(.*)<)?([^>]+)>?$/);
+  if (match && match[1]) {
+    return { name: match[1].trim(), email: match[2].trim() };
+  }
+  return { name: "MyDriveLog", email: from.trim() };
+}
+
 export async function sendBookingEmail(to: string, subject: string, body: string): Promise<EmailResult> {
-  const key = process.env.RESEND_API_KEY;
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  const resendApiKey = process.env.RESEND_API_KEY;
   const from = process.env.ACCESS_EMAIL_FROM;
-  if (!key || !from) return "not_configured";
+  if ((!brevoApiKey && !resendApiKey) || !from) return "not_configured";
+
   try {
+    if (brevoApiKey) {
+      const sender = parseSender(from);
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": brevoApiKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          sender,
+          to: [{ email: to }],
+          subject,
+          textContent: body,
+        }),
+      });
+      return response.ok ? "sent" : "failed";
+    }
+
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ from, to: [to], subject, text: body }),
     });
     return response.ok ? "sent" : "failed";
