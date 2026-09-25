@@ -80,7 +80,7 @@ export default function Home() {
               Plan your week, release lesson slots, manage bookings, and complete debriefs from one focused workspace.
             </p>
             <div className="hero-actions">
-              <ActionLink href={actionHref}>{testingWorkspace ? "Open calendar" : "Start free trial"} <ArrowRight /></ActionLink>
+              <ActionLink href={actionHref}>{testingWorkspace ? "Open calendar" : "Start pilot"} <ArrowRight /></ActionLink>
             </div>
             <div className="trust-line">
               <span><Check /> Instructor-first</span>
@@ -215,7 +215,7 @@ export default function Home() {
             <p>Bring availability, bookings, and lesson continuity into one focused place.</p>
           </div>
           <div className="closing-actions">
-            <ActionLink href={actionHref}>{testingWorkspace ? "Open calendar" : "Start free trial"} <ArrowRight /></ActionLink>
+            <ActionLink href={actionHref}>{testingWorkspace ? "Open calendar" : "Start pilot"} <ArrowRight /></ActionLink>
           </div>
         </div>
       </section>

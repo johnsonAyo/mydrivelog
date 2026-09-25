@@ -25,8 +25,8 @@ export function EmailAccessForm({ mode = "start", disabled = false }: { mode?: "
   return (
     <section data-dt="access-card" aria-labelledby="access-title">
       <Badge tone="brand">Solo workspace</Badge>
-      <Heading as="h1" size="section" id="access-title">{mode === "start" ? "Start your 14-day trial." : "Welcome back."}</Heading>
-      <Text variant="muted">{mode === "start" ? "Try the instructor workspace for 14 days. No card required. Solo is £24 per month after the trial, with no learner cap." : "Enter your email and we’ll send you a secure sign-in link."}</Text>
+      <Heading as="h1" size="section" id="access-title">{mode === "start" ? "Start your 14-day pilot." : "Welcome back."}</Heading>
+      <Text variant="muted">{mode === "start" ? "Explore the instructor workspace for 14 days. No card required. Solo is £24 per month after the pilot, with no learner cap." : "Enter your email and we’ll send you a secure sign-in link."}</Text>
       {state === "sent" ? (
         <div data-dt="access-feedback" role="status">
           <strong>Check your inbox.</strong>
@@ -47,7 +47,7 @@ export function TrialNotice({ endsAt, paidThrough, now }: { endsAt: string | nul
   const current = new Date(now);
   const paid = paidThrough !== null && new Date(paidThrough) > current;
   const trial = endsAt !== null && new Date(endsAt) > current;
-  const label = paid ? "Solo active" : trial ? "Trial active" : "Trial ended";
+  const label = paid ? "Solo active" : trial ? "Pilot active" : "Pilot ended";
   return (
     <aside data-dt="trial-notice" data-state={paid ? "paid" : trial ? "trial" : "expired"}>
       <Badge tone={trial ? "warning" : paid ? "success" : "neutral"}>{label}</Badge>

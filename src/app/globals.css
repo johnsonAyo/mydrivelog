@@ -1205,11 +1205,13 @@ h3 {
   }
 
   .header-actions [data-slot="button"] {
-    padding-inline: 0.8rem;
+    height: 2rem;
+    padding-inline: 0.7rem;
+    font-size: 0.8rem;
   }
 
   .hero {
-    padding-top: var(--space-8);
+    padding-top: var(--space-6);
   }
 
   .hero-grid {
@@ -1232,7 +1234,9 @@ h3 {
 
   .hero-actions [data-slot="button"],
   .closing-actions [data-slot="button"] {
-    width: 100%;
+    width: min(100%, 18rem);
+    height: 2.25rem;
+    font-size: 0.875rem;
   }
 
   .hero-side {

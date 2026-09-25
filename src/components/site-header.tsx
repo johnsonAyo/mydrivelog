@@ -66,7 +66,7 @@ export function SiteHeader({ testingWorkspace = false }: { testingWorkspace?: bo
           ) : (
             <>
               <Button render={<Link href="/sign-in" />} nativeButton={false} variant="neutral" size="sm">Sign in</Button>
-              <Button render={<Link href="/get-started" />} nativeButton={false} size="sm">Start free trial <ArrowRight /></Button>
+              <Button render={<Link href="/get-started" />} nativeButton={false} size="sm">Start pilot <ArrowRight /></Button>
             </>
           )}
         </div>
