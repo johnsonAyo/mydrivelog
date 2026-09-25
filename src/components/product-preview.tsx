@@ -162,7 +162,7 @@ function BookingPreview() {
 export function ProductPreview() {
   return (
     <Tabs defaultValue="today" className="product-tabs">
-      <TabsList className="product-tabs__list" aria-label="DriveTrack product views">
+      <TabsList className="product-tabs__list" aria-label="MyDriveLog product views">
         <TabsTrigger value="today">Today</TabsTrigger>
         <TabsTrigger value="calendar">Calendar</TabsTrigger>
         <TabsTrigger value="booking">Booking links</TabsTrigger>

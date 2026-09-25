@@ -44,7 +44,7 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   });
   const format = new Intl.DateTimeFormat("en-GB", { dateStyle: "full", timeStyle: "short", timeZone: result.timezone });
   await sendBookingEmail(result.instructorEmail, `Lesson booked by ${result.name}`,
-    `${result.name} (${result.email}) booked a lesson from your availability.\nStart: ${format.format(new Date(result.startsAt))}\nEnd: ${format.format(new Date(result.endsAt))}\n\nOpen your DriveTrack calendar to see the booking.`);
+    `${result.name} (${result.email}) booked a lesson from your availability.\nStart: ${format.format(new Date(result.startsAt))}\nEnd: ${format.format(new Date(result.endsAt))}\n\nOpen your MyDriveLog calendar to see the booking.`);
   await setCollectionBookingEmailStatus(result.id, learnerStatus);
   return NextResponse.json({ data: { id: result.id, startsAt: result.startsAt, endsAt: result.endsAt, confirmationEmailStatus: learnerStatus } }, { status: 201 });
 }

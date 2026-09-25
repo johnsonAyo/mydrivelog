@@ -48,7 +48,7 @@ export function SiteHeader({ testingWorkspace = false }: { testingWorkspace?: bo
   return (
     <header className="site-header">
       <div className="shell header-inner">
-        <Link href="#top" aria-label="DriveTrack home"><Wordmark /></Link>
+        <Link href="#top" aria-label="MyDriveLog home"><Wordmark /></Link>
         <nav aria-label="Main navigation" data-active={active}>
           {sections.map(({ id, label }) => (
             <Link

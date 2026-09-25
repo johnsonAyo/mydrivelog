@@ -171,8 +171,8 @@ function unexpectedAvailabilityProblem(operation: "creation" | "listing") {
     500,
     "unexpected_error",
     operation === "creation"
-      ? "DriveTrack could not save this availability"
-      : "DriveTrack could not load availability",
+      ? "MyDriveLog could not save this availability"
+      : "MyDriveLog could not load availability",
     correlationId,
   );
 }

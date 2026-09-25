@@ -15,8 +15,8 @@ export const resendAccessEmailSender: AccessEmailSender = {
       body: JSON.stringify({
         from,
         to: [to],
-        subject: "Your DriveTrack access link",
-        text: `Open this link to sign in to DriveTrack. It expires in 15 minutes and can only be used once.\n\n${url}\n\nIf you did not request this, you can ignore this email.`,
+        subject: "Your MyDriveLog access link",
+        text: `Open this link to sign in to MyDriveLog. It expires in 15 minutes and can only be used once.\n\n${url}\n\nIf you did not request this, you can ignore this email.`,
       }),
     });
     if (!response.ok) throw new Error(`Access email failed with status ${response.status}`);

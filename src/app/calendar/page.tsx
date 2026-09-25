@@ -7,7 +7,7 @@ import { AvailabilityWorkspace } from "@/components/availability-workspace";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Calendar — DriveTrack" };
+export const metadata: Metadata = { title: "Calendar — MyDriveLog" };
 
 export default async function CalendarPage() {
   const cookieStore = await cookies();
@@ -19,7 +19,7 @@ export default async function CalendarPage() {
 
   return (
     <ProductShell
-      brand="DriveTrack"
+      brand="MyDriveLog"
       navigation={[{ href: "/calendar", label: "Calendar", icon: <CalendarDays size={17} />, active: true }, { href: "/settings/scheduling", label: "Scheduling", icon: <SlidersHorizontal size={17} /> }]}
       title="Your calendar"
       description="Create availability, share booking links, and see confirmed lessons."

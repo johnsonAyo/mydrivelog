@@ -224,7 +224,7 @@ export default function Home() {
         <div className="shell footer-inner">
           <Wordmark />
           <p>One focused workspace for independent driving instructors.</p>
-          <div><Link href="#product">Product</Link><Link href="#faq">FAQ</Link><Link href="mailto:hello@drivetrack.uk">Contact</Link></div>
+          <div><Link href="#product">Product</Link><Link href="#faq">FAQ</Link><Link href="mailto:hello@mydrivelog.co.uk">Contact</Link></div>
         </div>
       </footer>
     </main>

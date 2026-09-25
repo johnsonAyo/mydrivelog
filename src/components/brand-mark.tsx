@@ -16,7 +16,7 @@ export function Wordmark() {
   return (
     <span className="wordmark">
       <BrandMark />
-      <span>DriveTrack</span>
+      <span>MyDriveLog</span>
     </span>
   );
 }

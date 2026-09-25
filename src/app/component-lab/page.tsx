@@ -29,8 +29,8 @@ import {
 import { previewCalendarDays, previewCalendarSlots, previewLessons } from "@/components/preview/preview-data";
 
 export const metadata: Metadata = {
-  title: "Component lab — DriveTrack",
-  description: "Isolated DriveTrack product components. Preview data only; not a working instructor workspace.",
+  title: "Component lab — MyDriveLog",
+  description: "Isolated MyDriveLog product components. Preview data only; not a working instructor workspace.",
   robots: { index: false, follow: false },
 };
 
@@ -131,7 +131,7 @@ export default function ComponentLab() {
 
       <ShowcaseSection id="shell" title="Product shell" description="A composed shell preview, without treating this as an authenticated product page.">
         <ProductShell
-          brand="DriveTrack"
+          brand="MyDriveLog"
           navigation={[
             { href: "#today", label: "Today", icon: <Clock3 size={17} />, active: true },
             { href: "#calendar", label: "Calendar", icon: <CalendarDays size={17} /> },

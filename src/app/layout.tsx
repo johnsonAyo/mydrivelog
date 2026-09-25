@@ -3,7 +3,7 @@ import "@fontsource-variable/bricolage-grotesque";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DriveTrack — Keep every lesson on track",
+  title: "MyDriveLog — Keep every lesson on track",
   description:
     "Plan your week, release lesson slots, manage bookings, and complete debriefs from one focused workspace for independent driving instructors.",
 };

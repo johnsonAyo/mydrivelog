@@ -9,7 +9,7 @@ import {
 
 const questions = [
   {
-    question: "Is DriveTrack built for independent instructors?",
+    question: "Is MyDriveLog built for independent instructors?",
     answer:
       "Yes. The workspace is designed around one instructor managing their teaching week, lesson availability, bookings, and debriefs.",
   },
@@ -26,7 +26,7 @@ const questions = [
   {
     question: "Does it replace my calendar?",
     answer:
-      "DriveTrack gives you a teaching-focused calendar so availability, bookings, travel gaps, and lesson context stay connected.",
+      "MyDriveLog gives you a teaching-focused calendar so availability, bookings, travel gaps, and lesson context stay connected.",
   },
 ];
 
