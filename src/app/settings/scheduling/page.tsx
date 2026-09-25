@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { CalendarDays, SlidersHorizontal, UsersRound } from "lucide-react";
 import { ProductShell } from "@drivetrack/ui";
 import { SchedulingSettingsWorkspace } from "@/components/scheduling-settings-workspace";
+import { InstructorSignOut } from "@/components/instructor-sign-out";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export default async function SchedulingPage() {
   const token = cookieStore.get(process.env.SESSION_COOKIE_NAME ?? "drivetrack_session")?.value;
   const session = await currentSessionResolver.resolve(token ?? null);
   if (!session || session.workspaceStatus === "suspended") redirect("/sign-in");
-  return <ProductShell brand="MyDriveLog" title="Scheduling settings" description="Set the rules for new availability and online lesson bookings." identity="Independent instructor workspace" navigation={[
+  return <ProductShell brand="MyDriveLog" title="Scheduling settings" description="Set the rules for new availability and online lesson bookings." identity="Independent instructor workspace" actions={<InstructorSignOut />} navigation={[
     { href: "/calendar", label: "Calendar", icon: <CalendarDays size={17} /> },
     { href: "/learners", label: "Learners", icon: <UsersRound size={17} /> },
     { href: "/settings/scheduling", label: "Scheduling", icon: <SlidersHorizontal size={17} />, active: true },

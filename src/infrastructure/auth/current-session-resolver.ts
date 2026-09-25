@@ -17,6 +17,7 @@ export const currentSessionResolver: SessionResolver = {
         identityId: workspaces.ownerIdentityId,
         workspaceId: workspaces.id,
         workspaceStatus: workspaces.status,
+        pilotActive: workspaces.pilotActive,
         trialEndsAt: workspaces.trialEndsAt,
         paidThrough: workspaces.paidThrough,
       })

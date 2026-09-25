@@ -9,14 +9,14 @@ function parseSender(from: string): { name: string; email: string } {
 }
 
 export const liveAccessEmailSender: AccessEmailSender = {
-  async sendAccessLink({ to, url }) {
+  async sendAccessCode({ to, code }) {
     const brevoApiKey = process.env.BREVO_API_KEY;
     const resendApiKey = process.env.RESEND_API_KEY;
     const from = process.env.ACCESS_EMAIL_FROM;
     if ((!brevoApiKey && !resendApiKey) || !from) throw new Error("Access email is not configured");
 
-    const subject = "Your MyDriveLog access link";
-    const textContent = `Open this link to sign in to MyDriveLog. It expires in 15 minutes and can only be used once.\n\n${url}\n\nIf you did not request this, you can ignore this email.`;
+    const subject = `${code} is your MyDriveLog sign-in code`;
+    const textContent = `Your MyDriveLog sign-in code is ${code}. It expires in 10 minutes and can only be used once.\n\nIf you did not request this, you can ignore this email.`;
 
     if (brevoApiKey) {
       const sender = parseSender(from);

@@ -21,15 +21,15 @@ async function jsonRequest<T>(url: string, method: "POST" | "PATCH", body: unkno
   return response.json() as Promise<T>;
 }
 
-export function AvailabilityWorkspace({ trialEndsAt, paidThrough, renderedAt, initialDate, testingWorkspace }: {
-  trialEndsAt: string | null; paidThrough: string | null; renderedAt: string; initialDate: string; testingWorkspace: boolean;
+export function AvailabilityWorkspace({ pilotActive, trialEndsAt, paidThrough, renderedAt, initialDate, testingWorkspace }: {
+  pilotActive: boolean; trialEndsAt: string | null; paidThrough: string | null; renderedAt: string; initialDate: string; testingWorkspace: boolean;
 }) {
   const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { staleTime: 15_000, retry: 1 } } }));
-  return <QueryClientProvider client={queryClient}><AvailabilityWorkspaceContent trialEndsAt={trialEndsAt} paidThrough={paidThrough} renderedAt={renderedAt} initialDate={initialDate} testingWorkspace={testingWorkspace} /></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><AvailabilityWorkspaceContent pilotActive={pilotActive} trialEndsAt={trialEndsAt} paidThrough={paidThrough} renderedAt={renderedAt} initialDate={initialDate} testingWorkspace={testingWorkspace} /></QueryClientProvider>;
 }
 
-function AvailabilityWorkspaceContent({ trialEndsAt, paidThrough, renderedAt, initialDate, testingWorkspace }: {
-  trialEndsAt: string | null; paidThrough: string | null; renderedAt: string; initialDate: string; testingWorkspace: boolean;
+function AvailabilityWorkspaceContent({ pilotActive, trialEndsAt, paidThrough, renderedAt, initialDate, testingWorkspace }: {
+  pilotActive: boolean; trialEndsAt: string | null; paidThrough: string | null; renderedAt: string; initialDate: string; testingWorkspace: boolean;
 }) {
   const [selectedWeek, setSelectedWeek] = useState<string | null>(() => mondayOf(initialDate));
   const [legacyId, setLegacyId] = useState<string | null>(null);
@@ -41,7 +41,7 @@ function AvailabilityWorkspaceContent({ trialEndsAt, paidThrough, renderedAt, in
   const [generalUrl, setGeneralUrl] = useState<string | null>(null);
   const [lastInvitation, setLastInvitation] = useState<{ url: string; emailStatus: string } | null>(null);
   const queryClient = useQueryClient();
-  const active = testingWorkspace || (trialEndsAt !== null && new Date(trialEndsAt) > new Date(renderedAt)) || (paidThrough !== null && new Date(paidThrough) > new Date(renderedAt));
+  const active = testingWorkspace || pilotActive || (trialEndsAt !== null && new Date(trialEndsAt) > new Date(renderedAt)) || (paidThrough !== null && new Date(paidThrough) > new Date(renderedAt));
 
   const index = useQuery({ queryKey: ["collections"], queryFn: async (): Promise<CollectionIndex> => {
     const response = await fetch("/api/v1/collections", { cache: "no-store" });
@@ -171,7 +171,7 @@ function AvailabilityWorkspaceContent({ trialEndsAt, paidThrough, renderedAt, in
   }
 
   return <Stack gap="5">
-    {!testingWorkspace && <TrialNotice endsAt={trialEndsAt} paidThrough={paidThrough} now={renderedAt} />}
+    {!testingWorkspace && <TrialNotice pilotActive={pilotActive} endsAt={trialEndsAt} paidThrough={paidThrough} now={renderedAt} />}
     {index.isError ? <EmptyState title="Availability unavailable" description="We couldn’t load your lists. Try refreshing the page." /> : <CollectionChooser weeks={weeks} earlierLists={collections.filter((collection) => !collection.weekStart)} monthLabel={monthLabel} selectedId={activeId} onPreviousMonth={() => moveMonth(-1)} onNextMonth={() => moveMonth(1)} onCreate={create} onSelect={selectCollection} busy={creating || !active} error={error?.area === "create" ? error.message : null} />}
     {!activeId && !index.isLoading && !index.isError && <EmptyState title="Choose a week to begin" description="Select Plan week above. Add one or more lesson times, save them privately, and share when you are ready." />}
     {activeId && (detail.data ? <CollectionEditor key={`${activeId}-${settings.data?.defaultSessionMinutes ?? 120}-${settings.data?.bufferWarningMinutes ?? 30}`} collection={detail.data} contacts={index.data?.contacts ?? []} defaultDuration={settings.data?.defaultSessionMinutes ?? 120} defaultGap={settings.data?.bufferWarningMinutes ?? 30} onSaveSlot={saveSlot} onSetStatus={setStatus} onGenerate={generate} onInvite={invite} onGeneralLink={makeGeneralLink} onChangeBooking={changeBooking} onPreview={async (kind): Promise<PublicCollection> => { const response = await fetch(`/api/v1/collections/${activeId}/preview?kind=${kind}`, { cache: "no-store" }); if (!response.ok) throw new Error("Preview unavailable"); const json: { data: PublicCollection } = await response.json(); return json.data; }} generalUrl={generalUrl} lastInvitation={lastInvitation} busy={editing || !active} error={error?.area !== "create" ? error?.message ?? null : null} errorArea={error?.area !== "create" ? error?.area ?? null : null} notice={notice?.message ?? null} noticeArea={notice?.area !== "create" ? notice?.area ?? null : null} /> : detail.isError ? <EmptyState title="Could not open this list" description="Please choose it again or refresh the page." /> : <p>Opening your time list…</p>)}

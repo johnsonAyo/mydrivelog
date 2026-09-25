@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { CalendarDays, SlidersHorizontal, UsersRound } from "lucide-react";
 import { ProductShell } from "@drivetrack/ui";
 import { AvailabilityWorkspace } from "@/components/availability-workspace";
+import { InstructorSignOut } from "@/components/instructor-sign-out";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 
 export const dynamic = "force-dynamic";
@@ -24,9 +25,11 @@ export default async function CalendarPage() {
       title="Your calendar"
       description="Create availability, share booking links, and see confirmed lessons."
       identity="Independent instructor workspace"
+      actions={<InstructorSignOut />}
     >
       <AvailabilityWorkspace
         testingWorkspace={session.testingWorkspace === true}
+        pilotActive={session.pilotActive}
         trialEndsAt={session.trialEndsAt?.toISOString() ?? null}
         paidThrough={session.paidThrough?.toISOString() ?? null}
         renderedAt={renderedAt.toISOString()}

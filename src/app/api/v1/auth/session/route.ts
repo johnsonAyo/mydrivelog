@@ -4,5 +4,5 @@ import { liveAuthRoutes } from "@/presentation/http/live-auth-routes";
 export const dynamic = "force-dynamic";
 
 export function POST(request: NextRequest) {
-  return liveAuthRoutes().verifyCode(request);
+  return liveAuthRoutes().establishSession(request);
 }

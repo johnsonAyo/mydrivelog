@@ -14,6 +14,7 @@ export const postgresSessionResolver: SessionResolver = {
         identityId: instructorSessions.identityId,
         workspaceId: workspaces.id,
         workspaceStatus: workspaces.status,
+        pilotActive: workspaces.pilotActive,
         trialEndsAt: workspaces.trialEndsAt,
         paidThrough: workspaces.paidThrough,
       })

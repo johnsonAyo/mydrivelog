@@ -1,28 +1,35 @@
-export type IssueChallenge = {
+export type IssueCode = {
+  readonly id: string;
   readonly email: string;
-  readonly tokenHash: string;
+  readonly codeHash: string;
   readonly expiresAt: Date;
   readonly now: Date;
 };
 
-export type ConsumeChallenge = {
-  readonly tokenHash: string;
+export type ConsumeCode = {
+  readonly email: string;
+  readonly code: string;
+  readonly secret: string;
+  readonly now: Date;
+};
+
+export type EstablishSession = {
+  readonly email: string;
+  readonly firebaseUid: string;
   readonly sessionTokenHash: string;
   readonly sessionExpiresAt: Date;
   readonly now: Date;
 };
 
-export type VerifiedAccess = {
-  readonly identityId: string;
-  readonly workspaceId: string;
-  readonly trialEndsAt: Date;
-};
-
 export interface AuthRepository {
-  issueChallenge(input: IssueChallenge): Promise<"issued" | "rate_limited">;
-  consumeChallenge(input: ConsumeChallenge): Promise<VerifiedAccess | null>;
+  issueCode(input: IssueCode): Promise<"issued" | "rate_limited">;
+  invalidateCode(id: string): Promise<void>;
+  consumeCode(input: ConsumeCode): Promise<"valid" | "invalid">;
+  establishSession(input: EstablishSession): Promise<{ needsOnboarding: boolean }>;
+  completeOnboarding(input: { identityId: string; fullName: string }): Promise<void>;
+  revokeSession(sessionTokenHash: string): Promise<void>;
 }
 
 export interface AccessEmailSender {
-  sendAccessLink(input: { readonly to: string; readonly url: string }): Promise<void>;
+  sendAccessCode(input: { readonly to: string; readonly code: string }): Promise<void>;
 }

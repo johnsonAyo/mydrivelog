@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   index,
@@ -32,9 +33,14 @@ export const instructorIdentities = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email").notNull(),
+    firebaseUid: text("firebase_uid"),
+    fullName: text("full_name"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("instructor_identities_email_unique").on(sql`lower(${table.email})`)],
+  (table) => [
+    uniqueIndex("instructor_identities_email_unique").on(sql`lower(${table.email})`),
+    uniqueIndex("instructor_identities_firebase_uid_unique").on(table.firebaseUid),
+  ],
 );
 
 export const workspaces = pgTable(
@@ -54,6 +60,7 @@ export const workspaces = pgTable(
     weeklyBookingAllowance: weeklyBookingAllowance("weekly_booking_allowance")
       .notNull()
       .default("unlimited"),
+    pilotActive: boolean("pilot_active").notNull().default(true),
     trialStartedAt: timestamp("trial_started_at", { withTimezone: true }),
     trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
     paidThrough: timestamp("paid_through", { withTimezone: true }),
@@ -86,6 +93,7 @@ export const authChallenges = pgTable(
     tokenHash: text("token_hash").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    attempts: integer("attempts").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

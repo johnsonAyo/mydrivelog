@@ -12,6 +12,7 @@ const activeSession: SessionResolver = {
     identityId: "identity-1",
     workspaceId: "workspace-1",
     workspaceStatus: "active" as const,
+    pilotActive: false,
     trialEndsAt: new Date("2026-10-08T00:00:00.000Z"),
     paidThrough: null,
   })),
@@ -32,7 +33,7 @@ describe("availability HTTP contract", () => {
     const routes = availabilityRoutes({
       sessions: { resolve: vi.fn(async () => ({
         identityId: "test-instructor", workspaceId: "test-workspace", workspaceStatus: "active" as const,
-        trialEndsAt: null, paidThrough: null, testingWorkspace: true as const,
+        trialEndsAt: null, paidThrough: null, pilotActive: true, testingWorkspace: true as const,
       })) },
       availability,
     });
@@ -53,6 +54,7 @@ describe("availability HTTP contract", () => {
         workspaceId: "workspace-1",
         workspaceStatus: "active" as const,
         trialEndsAt: new Date("2026-10-01T00:00:00.000Z"),
+        pilotActive: false,
         paidThrough: null,
       })),
     };
@@ -75,7 +77,7 @@ describe("availability HTTP contract", () => {
     const routes = availabilityRoutes({
       sessions: { resolve: vi.fn(async () => ({
         identityId: "identity-1", workspaceId: "workspace-1", workspaceStatus: "active" as const,
-        trialEndsAt: new Date("2026-10-01T00:00:00.000Z"), paidThrough: null,
+        trialEndsAt: new Date("2026-10-01T00:00:00.000Z"), paidThrough: null, pilotActive: false,
       })) },
       availability: repositoryStub({}, { exportAll: vi.fn(async () => [{
         id: "slot-1", startsAt: new Date("2026-10-05T09:00:00.000Z"), endsAt: new Date("2026-10-05T11:00:00.000Z"), status: "open" as const,
