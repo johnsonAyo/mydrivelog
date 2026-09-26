@@ -41,8 +41,8 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
     const result = await requestGeneralAccess(token, access.data.name, access.data.email);
     if (!result) return problem(404, "not_found", "This availability link is unavailable");
     const url = `${process.env.APP_BASE_URL ?? request.nextUrl.origin}/book/availability/${result.accessToken}`;
-    const delivery = await sendBookingEmail(access.data.email, `Confirm your email to book with ${result.instructorName}`,
-      `Hi ${access.data.name},\n\nOpen this link to confirm your email and choose a driving lesson with ${result.instructorName}:\n${url}\n\nIf you did not ask for this link, ignore this email.`);
+    const delivery = await sendBookingEmail(access.data.email, "Your driving lesson booking link",
+      `Hi ${access.data.name},\n\nUse this personal link to choose and confirm a driving lesson time:\n${url}\n\nIf you did not request this link, you can ignore this email.\n\nMyDriveLog`);
     if (delivery !== "sent") return problem(503, "email_unavailable", "Email verification is not available right now. Ask your instructor for a personal invitation.");
     return NextResponse.json({ data: { emailSent: true } });
   }

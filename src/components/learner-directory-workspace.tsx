@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { EmptyState, LearnerDirectory, type Learner } from "@drivetrack/ui";
 
@@ -33,5 +34,5 @@ export function LearnerDirectoryWorkspace() {
     finally { setBusy(false); }
   }
   if (!learners) return message ? <EmptyState title="Learners unavailable" description={message} /> : <p>Loading learners…</p>;
-  return <LearnerDirectory learners={learners} onSave={save} busy={busy} message={message} />;
+  return <LearnerDirectory learners={learners} onSave={save} busy={busy} message={message} renderProfileLink={(href, children) => <Link href={href}>{children}</Link>} />;
 }

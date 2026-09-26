@@ -1,1 +1,0 @@
-ALTER TABLE "workspaces" ADD COLUMN "pilot_active" boolean DEFAULT true NOT NULL;

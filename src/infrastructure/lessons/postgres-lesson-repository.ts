@@ -2,13 +2,19 @@ import type { BookedLesson, LessonDraft, LessonMessage, LessonRepository } from 
 import type { SkillAssessment } from "@/domain/lessons/recap";
 import { getDatabase } from "@/infrastructure/database/client";
 
+type Timestamp = Date | string;
+
+function toDate(value: Timestamp): Date {
+  return value instanceof Date ? value : new Date(value);
+}
+
 type BookingRow = {
   id: string;
   source: BookedLesson["source"];
   learner_name: string;
   learner_email: string;
-  starts_at: Date;
-  ends_at: Date;
+  starts_at: Timestamp;
+  ends_at: Timestamp;
   booking_status: string;
 };
 
@@ -18,8 +24,8 @@ type DraftRow = {
   what_to_practise: string;
   next_lesson_focus: string;
   revision: number;
-  completed_at: Date | null;
-  updated_at: Date;
+  completed_at: Timestamp | null;
+  updated_at: Timestamp;
 };
 
 function mapDraft(row?: DraftRow, skills: SkillAssessment[] = []): LessonDraft {
@@ -30,8 +36,8 @@ function mapDraft(row?: DraftRow, skills: SkillAssessment[] = []): LessonDraft {
     nextLessonFocus: row?.next_lesson_focus ?? "",
     skills,
     revision: row?.revision ?? 0,
-    completedAt: row?.completed_at ?? null,
-    updatedAt: row?.updated_at ?? null,
+    completedAt: row?.completed_at ? toDate(row.completed_at) : null,
+    updatedAt: row?.updated_at ? toDate(row.updated_at) : null,
   };
 }
 
@@ -94,7 +100,7 @@ export const postgresLessonRepository: LessonRepository = {
           select d.id, d.next_lesson_focus, b.starts_at from lesson_debriefs d
             join bookings b on b.id = d.legacy_booking_id join release_recipients r on r.id = b.recipient_id
             where d.workspace_id = ${workspaceId} and b.status = 'confirmed' and lower(r.email) in (select email from learner_emails)
-        ) prior where prior.starts_at < ${booking.starts_at}
+        ) prior where prior.starts_at < ${toDate(booking.starts_at).toISOString()}
         order by prior.starts_at desc limit 1`,
     ]);
     const [priorSkills] = previous.length ? await Promise.all([client<{ skill: string; outcome: SkillAssessment["outcome"] }[]>`
@@ -104,8 +110,8 @@ export const postgresLessonRepository: LessonRepository = {
       source: booking.source,
       learnerName: booking.learner_name,
       learnerEmail: booking.learner_email,
-      startsAt: booking.starts_at,
-      endsAt: booking.ends_at,
+      startsAt: toDate(booking.starts_at),
+      endsAt: toDate(booking.ends_at),
       bookingStatus: booking.booking_status,
       draft: mapDraft(draft, assessments),
       previousNextFocus: previous[0]?.next_lesson_focus || null,
@@ -183,10 +189,12 @@ export const postgresLessonRepository: LessonRepository = {
 
 type LessonMessageRow = {
   id: string; kind: LessonMessage["kind"]; recipient_email: string; subject: string; body: string;
-  status: LessonMessage["status"]; attempts: number; last_attempt_at: Date | null; created_at: Date; delivered_at: Date | null;
+  status: LessonMessage["status"]; attempts: number; last_attempt_at: Timestamp | null; created_at: Timestamp; delivered_at: Timestamp | null;
 };
 
 function mapMessage(row: LessonMessageRow): LessonMessage {
   return { id: row.id, kind: row.kind, recipientEmail: row.recipient_email, subject: row.subject,
-    body: row.body, status: row.status, attempts: row.attempts, lastAttemptAt: row.last_attempt_at, createdAt: row.created_at, deliveredAt: row.delivered_at };
+    body: row.body, status: row.status, attempts: row.attempts,
+    lastAttemptAt: row.last_attempt_at ? toDate(row.last_attempt_at) : null,
+    createdAt: toDate(row.created_at), deliveredAt: row.delivered_at ? toDate(row.delivered_at) : null };
 }

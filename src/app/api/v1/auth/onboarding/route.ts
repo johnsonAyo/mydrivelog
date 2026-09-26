@@ -5,7 +5,14 @@ import { postgresAuthRepository } from "@/infrastructure/auth/postgres-auth-repo
 import { postgresSessionResolver } from "@/infrastructure/auth/postgres-session-resolver";
 import { problem } from "@/presentation/http/problem";
 
-const inputSchema = z.object({ fullName: z.string().trim().min(2).max(100) });
+const inputSchema = z
+  .object({
+    fullName: z.string().trim().min(1).max(100).optional(),
+    firstName: z.string().trim().min(1).max(100).optional(),
+  })
+  .refine((data) => Boolean(data.fullName || data.firstName), {
+    message: "Enter your first name",
+  });
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +22,9 @@ export async function POST(request: NextRequest) {
   const session = await postgresSessionResolver.resolve(token ?? null);
   if (!session) return problem(401, "unauthenticated", "Sign in to continue");
   const parsed = inputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(400, "invalid_name", "Enter your full name");
-  await postgresAuthRepository.completeOnboarding({ identityId: session.identityId, fullName: parsed.data.fullName });
+  if (!parsed.success) return problem(400, "invalid_name", "Enter your first name");
+  const rawName = (parsed.data.firstName ?? parsed.data.fullName)!.trim();
+  const firstName = rawName.split(/\s+/)[0];
+  await postgresAuthRepository.completeOnboarding({ identityId: session.identityId, fullName: firstName });
   return NextResponse.json({ next: "/calendar" }, { headers: { "Cache-Control": "private, no-store" } });
 }

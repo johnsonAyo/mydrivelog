@@ -9,7 +9,7 @@ const lessonStateLabels: Record<TimelineLesson["state"], string> = {
   completed: "Completed",
 };
 
-export function TodayTimeline({ title = "Today’s lessons", lessons }: { title?: string; lessons: readonly TimelineLesson[] }) {
+export function TodayTimeline({ title = "Today’s lessons", lessons, renderLessonLink }: { title?: string; lessons: readonly TimelineLesson[]; renderLessonLink?: (href: string, children: ReactNode) => ReactNode }) {
   return (
     <section data-dt="today-timeline" aria-label={title}>
       <header>
@@ -23,7 +23,7 @@ export function TodayTimeline({ title = "Today’s lessons", lessons }: { title?
             <div data-dt="timeline-marker" aria-hidden="true" />
             <div data-dt="timeline-lesson">
               <div>
-                <strong>{lesson.href ? <a href={lesson.href}>{lesson.name} · Open lesson</a> : lesson.name}</strong>
+                <strong>{lesson.href ? renderLessonLink ? renderLessonLink(lesson.href, `${lesson.name} · Open lesson`) : <a href={lesson.href}>{lesson.name} · Open lesson</a> : lesson.name}</strong>
                 <Text variant="muted">{lesson.detail}</Text>
               </div>
               <Badge tone={lesson.state === "awaiting-debrief" ? "warning" : lesson.state === "completed" ? "success" : "neutral"}>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { GoogleAuthProvider, getRedirectResult, signInWithCustomToken, signInWithPopup, signInWithRedirect } from "firebase/auth";
 import { Badge, Button, Field, Heading, Text } from "@drivetrack/ui";
 import { firebaseClientAuth } from "@/infrastructure/auth/firebase-client";
+import { GoogleIcon } from "@/components/google-icon";
 
 type Step = "email" | "code";
 
@@ -122,7 +123,7 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
       <Button type="submit" disabled={busy || code.length !== 6}>{busy ? "Checking…" : "Open workspace"}</Button>
       <Button type="button" variant="ghost" disabled={busy} onClick={() => { setStep("email"); setCode(""); setError(""); }}>Use a different email</Button>
     </form>}
-    {step === "email" && <div className="grid gap-3 border-t border-border pt-4"><Text variant="caption">Or continue with</Text><Button type="button" variant="outline" disabled={busy} onClick={googleSignIn}>Google</Button></div>}
+    {step === "email" && <div className="grid gap-3 border-t border-border pt-4"><Text variant="caption">Or continue with</Text><Button type="button" variant="outline" disabled={busy} onClick={googleSignIn}><GoogleIcon /> Google</Button></div>}
     {error && <Text variant="caption"><span role="alert">{error}</span></Text>}
   </section>;
 }

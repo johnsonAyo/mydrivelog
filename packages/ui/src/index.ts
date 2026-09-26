@@ -1,7 +1,7 @@
 export { Container, Surface, Stack, Inline, Heading, Text, Button, Badge, Field, SelectField, TextareaField, EmptyState } from "./primitives";
 export type { Space, Tone, Variant, Size } from "./primitives";
-export { ProductShell } from "./product-shell";
-export { CollectionChooser, CollectionEditor, PublicCollectionPicker } from "./collections";
+export { ProductPage, ProductShell } from "./product-shell";
+export { CollectionChooser, CollectionEditor, CollectionSharing, PublicCollectionPicker } from "./collections";
 export type { CollectionSummary, CollectionDetail, CollectionSlot, CollectionFeedbackArea, ContactOption, SlotInput, PublicCollection } from "./collections";
 export { AvailabilitySlotCard, AvailabilityCalendar, AvailabilityEditor, AvailabilityForm } from "./availability";
 export { SchedulingSettingsForm, AvailabilityWindowPanel, PublicBookingPicker } from "./booking";
@@ -15,3 +15,5 @@ export { Showcase, ShowcaseIntro, ShowcaseSection, ShowcaseGrid } from "./showca
 export { EmailAccessForm, TrialNotice } from "./access";
 export { LearnerDirectory } from "./learners";
 export type { Learner } from "./learners";
+export { LearnerProfile } from "./learner-profile";
+export type { LearnerProfileLesson } from "./learner-profile";

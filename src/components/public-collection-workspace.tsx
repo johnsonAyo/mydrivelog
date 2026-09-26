@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { EmptyState, PublicCollectionPicker, type PublicCollection } from "@drivetrack/ui";
 
 export function PublicCollectionWorkspace({ token }: { token: string }) {
@@ -52,5 +53,5 @@ export function PublicCollectionWorkspace({ token }: { token: string }) {
 
   if (loadingError) return <div data-dt="public-booking-wrap"><EmptyState title="Booking unavailable" description={loadingError} /></div>;
   if (!collection) return <div data-dt="public-booking-wrap"><p>Loading lesson times…</p></div>;
-  return <PublicCollectionPicker collection={collection} onRequestAccess={(name, email) => act({ action: "request_access", name, email }, "Check your email for your personal booking link.")} onBook={(slotId) => act({ action: "claim", slotId }, "Your lesson is booked.")} onChangeBooking={(bookingId, action, slotId) => act({ action, collectionId: collection.collectionId, bookingId, slotId }, action === "cancel" ? "Lesson cancelled. The change is reflected in your instructor’s calendar." : "Lesson moved. The new time is reflected in your instructor’s calendar.")} busy={busy} error={error} notice={notice} />;
+  return <PublicCollectionPicker collection={collection} renderHomeLink={(children) => <Link href="/">{children}</Link>} onRequestAccess={(name, email) => act({ action: "request_access", name, email }, "Check your email for your personal booking link.")} onBook={(slotId) => act({ action: "claim", slotId }, "Your lesson is booked.")} onChangeBooking={(bookingId, action, slotId) => act({ action, collectionId: collection.collectionId, bookingId, slotId }, action === "cancel" ? "Lesson cancelled. The change is reflected in your instructor’s calendar." : "Lesson moved. The new time is reflected in your instructor’s calendar.")} busy={busy} error={error} notice={notice} />;
 }

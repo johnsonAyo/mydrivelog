@@ -1,6 +1,6 @@
-# DriveTrack
+# MyDriveLog
 
-DriveTrack is an instructor-first lesson planning product. This repository combines the approved landing page, the availability backend, and an isolated product-component system. The earlier `drivetrack` repository remains untouched as a fallback; no production records or secrets were moved.
+MyDriveLog is an instructor-first lesson planning product. This repository combines the approved landing page, the availability backend, and an isolated product-component system. The earlier `drivetrack` repository remains untouched as a fallback; no production records or secrets were moved.
 
 ## Run locally
 
@@ -10,7 +10,7 @@ npm run db:seed:dev
 npm run dev
 ```
 
-Requires Node.js 22 or later and PostgreSQL for database-backed routes. Set `DATABASE_URL` in ignored `.env.local` and migrate with `node --env-file=.env.local ./node_modules/.bin/drizzle-kit migrate`. To use the local seeded-workspace bypass instead of signing in, set a UUID `DEV_WORKSPACE_ID` in ignored `.env.development.local` before seeding. The local Neon development database is already configured and seeded in this workspace. `npm run db:seed:dev` is idempotent. Open `http://localhost:3000/calendar` to create a named availability draft, add exact date/time entries, edit or generate more times, then invite a person or create a general link. Sharing a draft makes its times bookable; additional times in an already shared list can be saved privately first. A confirmed lesson appears beside the instructor’s time entry and disappears from other people’s available choices. Use `/settings/scheduling` for the default lesson length, advisory travel gap, and weekly online-booking allowance. `/component-lab` remains an isolated visual inventory using sample data, not a second application. `/api/v1/health` does not require a database; readiness and availability routes do.
+Requires Node.js 22 or later and PostgreSQL for database-backed routes. Set `DATABASE_URL` in ignored `.env.local` and apply the current schema with `node --env-file=.env.local ./node_modules/.bin/drizzle-kit push --strict` followed by `node --env-file=.env.local scripts/ensure-database-invariants.mjs`. This updates the database directly without generating migration files, then installs the database overlap rule. To use the local seeded-workspace bypass instead of signing in, set a UUID `DEV_WORKSPACE_ID` in ignored `.env.development.local` before seeding. The local Neon development database is already configured and seeded in this workspace. `npm run db:seed:dev` is idempotent. Open `http://localhost:3000/calendar` to plan availability by week, add exact date/time entries, edit or generate more times, then invite a person or create a general link. Sharing a draft makes its times bookable; additional times in an already shared list can be saved privately first. A confirmed lesson appears beside the instructor’s time entry and disappears from other people’s available choices. Use `/settings/scheduling` for the default lesson length, advisory travel gap, and weekly online-booking allowance. `/component-lab` remains an isolated visual inventory using sample data, not a second application. `/api/v1/health` does not require a database; readiness and availability routes do.
 
 Instructor authentication uses Firebase Authentication for verified Google sign-in and six-digit email codes sent through the configured branded email provider. Both methods establish the same revocable, HTTP-only workspace session after Firebase ID-token verification. New instructors enter their full name during onboarding. The dedicated Firebase project is configured for production and local development; use `.env.example` to configure another environment. In local development only, `DEV_WORKSPACE_ID` resolves one seeded workspace without a login cookie. Never set that bypass in a shared or production deployment.
 
@@ -31,7 +31,7 @@ This runs stylesheet and product-style boundary checks, type-checking, backend t
 - `packages/ui` — prop-driven product primitives and isolated calendar, lesson, and debrief components.
 - `src/app/component-lab` — visual inventory with clearly marked sample data.
 - `src/app/api`, `src/presentation`, `src/application`, `src/domain`, `src/infrastructure` — availability, Firebase-backed instructor authentication, and entitlement slices, preserving clean-architecture boundaries.
-- `drizzle` — copied database migration and schema history.
+- `src/infrastructure/database/schema.ts` — current database schema; `scripts/ensure-database-invariants.mjs` — overlap rule not represented by Drizzle.
 
 Read [the migration record](docs/MIGRATION.md), [component system](docs/COMPONENT_SYSTEM.md), [architecture](docs/ARCHITECTURE.md), and [product decisions](docs/PRODUCT_DECISIONS.md) before extending the product. `SPEC.md` contains earlier discovery context; confirmed decisions take precedence where they differ.
 

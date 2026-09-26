@@ -26,14 +26,14 @@ export async function completeInstructorLesson(workspaceId: string, bookingId: s
   const { client } = getDatabase();
   return client.begin(async (sql): Promise<OperationResult<null>> => {
     const [booking] = lesson.source === "collection"
-      ? await sql<{ status: string; ends_at: Date }[]>`
+      ? await sql<{ status: string; ends_at: Date | string }[]>`
           select b.status, s.ends_at from collection_bookings b join collection_slots s on s.id = b.slot_id
           join availability_collections c on c.id = b.collection_id
           where b.id = ${bookingId} and c.workspace_id = ${workspaceId} for update of b`
-      : await sql<{ status: string; ends_at: Date }[]>`
+      : await sql<{ status: string; ends_at: Date | string }[]>`
           select status, ends_at from bookings where id = ${bookingId} and workspace_id = ${workspaceId} for update`;
     if (!booking || booking.status !== "confirmed") return { ok: false, reason: "not_found" };
-    if (booking.ends_at > new Date()) return { ok: false, reason: "too_early" };
+    if (new Date(booking.ends_at) > new Date()) return { ok: false, reason: "too_early" };
     if (lesson.source === "collection") {
       await sql`insert into lesson_debriefs (workspace_id, collection_booking_id) values (${workspaceId}, ${bookingId}) on conflict (collection_booking_id) do nothing`;
     } else {
@@ -77,14 +77,14 @@ export async function queueLessonMessage(workspaceId: string, bookingId: string,
   const { client } = getDatabase();
   return client.begin(async (sql): Promise<OperationResult<{ id: string }>> => {
     const [booking] = lesson.source === "collection"
-      ? await sql<{ status: string; ends_at: Date; name: string; email: string }[]>`
+      ? await sql<{ status: string; ends_at: Date | string; name: string; email: string }[]>`
           select b.status, s.ends_at, b.name, b.email from collection_bookings b join collection_slots s on s.id = b.slot_id
           join availability_collections c on c.id = b.collection_id where b.id = ${bookingId} and c.workspace_id = ${workspaceId} for update of b`
-      : await sql<{ status: string; ends_at: Date; name: string; email: string }[]>`
+      : await sql<{ status: string; ends_at: Date | string; name: string; email: string }[]>`
           select b.status, b.ends_at, r.name, r.email from bookings b join release_recipients r on r.id = b.recipient_id
           where b.id = ${bookingId} and b.workspace_id = ${workspaceId} for update of b`;
     if (!booking || booking.status !== "confirmed") return { ok: false, reason: "not_found" };
-    if (booking.ends_at > new Date()) return { ok: false, reason: "too_early" };
+    if (new Date(booking.ends_at) > new Date()) return { ok: false, reason: "too_early" };
     const [draft] = await sql<{ id: string; revision: number; what_we_worked_on: string; what_to_practise: string; next_lesson_focus: string }[]>`
       select id, revision, what_we_worked_on, what_to_practise, next_lesson_focus from lesson_debriefs
       where workspace_id = ${workspaceId} and ${lesson.source === "collection" ? sql`collection_booking_id` : sql`legacy_booking_id`} = ${bookingId} for update`;

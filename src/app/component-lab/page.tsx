@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { CalendarDays, Clock3 } from "lucide-react";
 import {
   AvailabilityCalendar,
   AvailabilityEditor,
@@ -26,6 +25,8 @@ import {
   TrialNotice,
   TodayTimeline,
 } from "@drivetrack/ui";
+import { instructorNavigation } from "@/components/instructor-navigation";
+import { CollectionEditorPreview } from "@/components/preview/collection-editor-preview";
 import { previewCalendarDays, previewCalendarSlots, previewLessons } from "@/components/preview/preview-data";
 
 export const metadata: Metadata = {
@@ -132,17 +133,17 @@ export default function ComponentLab() {
       <ShowcaseSection id="shell" title="Product shell" description="A composed shell preview, without treating this as an authenticated product page.">
         <ProductShell
           brand="MyDriveLog"
-          navigation={[
-            { href: "#today", label: "Today", icon: <Clock3 size={17} />, active: true },
-            { href: "#calendar", label: "Calendar", icon: <CalendarDays size={17} /> },
-          ]}
+          navigation={instructorNavigation("today")}
           title="Today"
           description="Your lessons and follow-ups in one place."
-          identity="Independent instructor workspace"
+          identity="Alex"
           actions={<Button disabled>Add availability</Button>}
         >
           <TodayTimeline lessons={previewLessons} />
         </ProductShell>
+      </ShowcaseSection>
+      <ShowcaseSection id="week-editor" title="Availability week actions" description="Preview and sharing are available directly from a saved week, before opening its lesson-time editor.">
+        <CollectionEditorPreview />
       </ShowcaseSection>
     </Showcase>
   );

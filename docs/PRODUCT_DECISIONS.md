@@ -2,10 +2,10 @@
 
 This document records the user decisions that override older discovery notes and the original starter specification.
 
-1. DriveTrack is a standalone product repository. `styling-discipline` remains intact as a reusable starter/reference and is not imported as a package.
+1. MyDriveLog is a standalone product repository. `styling-discipline` remains intact as a reusable starter/reference and is not imported as a package.
 2. Instructors are the only authenticated product users.
 3. Students do not have accounts, profiles, dashboards, or a management area. They receive purpose-scoped booking/management links and email communication.
-4. DriveTrack does not handle student lesson payments, balances, invoices, or refunds. Product subscription billing is a separate, now-confirmed capability.
+4. MyDriveLog does not handle student lesson payments, balances, invoices, or refunds. Product subscription billing is a separate, now-confirmed capability.
 5. The pilot is UK-only.
 6. The default session duration is two hours and is configurable for future sessions.
 7. A short travel buffer produces a warning only. It never blocks an instructor action.
@@ -21,7 +21,7 @@ This document records the user decisions that override older discovery notes and
 17. Firebase Authentication is the instructor identity provider. Instructors sign in with a branded emailed six-digit code or Google; there are no passwords or magic links. Neon retains the workspace and opaque app sessions. First-time instructors provide their full name after verification.
 18. Build one real application, not a parallel preview implementation. During local development, Calendar may use a seeded test workspace and the live database without authentication gates; the component lab remains an isolated, inert visual inventory. The dedicated Firebase project and application credentials are configured; the complete browser sign-in flow must be verified before public use.
 19. The development database lives in a separate Neon account from the user's existing CLI account. Its credentials and the isolated CLI login remain git-ignored. Availability-list booking is the current live vertical slice; Today and debrief workflows follow separately.
-20. An instructor plans availability by Monday–Sunday week, navigating by month. A month shows every week it touches (four to six, not a forced four-way split). Each workspace has at most one list per week, automatically named by its date range. The instructor may plan one or several future weeks, add multiple exact lesson times on each day, keep them private, and return to them later. A range-to-times generator is an optional shortcut, not the required path. Existing freely named lists remain accessible under Earlier lists rather than being silently changed.
+20. An instructor plans availability by Monday–Sunday week, navigating by month. A month shows every week it touches (four to six, not a forced four-way split). Each workspace has at most one list per week, automatically named by its date range. The instructor may plan one or several future weeks, add multiple exact lesson times on each day, keep them private, and return to them later. A range-to-times generator is an optional shortcut, not the required path. The obsolete freely named lists and “Earlier lists” view are removed before launch; all new availability belongs to a week.
 21. Sharing a draft makes its current times bookable. A shared list remains editable; any new times saved privately stay hidden until explicitly made bookable. Already booked times are not offered to other recipients. The instructor sees who booked each time.
 22. An instructor may invite an existing contact or enter a new name and email, and may separately create a reusable general link. Re-sending to an existing recipient replaces their personal link without removing confirmed bookings. New people using the general link provide a name and verify their email before booking.
 23. The public booking page shows only currently bookable times and a recipient's own confirmed bookings. It does not reveal closed, private, or other people's booked times. The default session duration and advisory travel gap prefill availability creation but do not force rigid time patterns.

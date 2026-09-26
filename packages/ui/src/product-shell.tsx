@@ -40,15 +40,26 @@ export function ProductShell({
         {identity && <div data-dt="product-identity">{identity}</div>}
       </aside>
       <div data-dt="product-main">
-        <header data-dt="product-header">
-          <div>
-            <Heading as="h1" size="section">{title}</Heading>
-            {description && <Text variant="muted">{description}</Text>}
-          </div>
-          {actions && <div data-dt="product-actions">{actions}</div>}
-        </header>
-        <main data-dt="product-content">{children}</main>
+        <ProductPage title={title} description={description} actions={actions}>{children}</ProductPage>
       </div>
     </div>
   );
+}
+
+export function ProductPage({ title, description, actions, children }: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return <>
+    <header data-dt="product-header">
+      <div>
+        <Heading as="h1" size="section">{title}</Heading>
+        {description && <Text variant="muted">{description}</Text>}
+      </div>
+      {actions && <div data-dt="product-actions">{actions}</div>}
+    </header>
+    <main data-dt="product-content">{children}</main>
+  </>;
 }

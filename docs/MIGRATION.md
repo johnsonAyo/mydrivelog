@@ -25,6 +25,6 @@ Missing backend journeys include session issuance, booking, slot release, lesson
 
 ## Verification and handoff
 
-Run `npm run verify` after installation. To run database-backed routes locally, copy `.env.example` to `.env.local`, provide a new or intended PostgreSQL database, and run `npm run db:migrate`. Do not run the migration against the old production database unless that is explicitly chosen. The old repo remains a fallback until the new product journeys and real database integration are verified.
+Run `npm run verify` after installation. To run database-backed routes locally, copy `.env.example` to `.env.local`, provide a new or intended PostgreSQL database, and run `node --env-file=.env.local ./node_modules/.bin/drizzle-kit push --strict` followed by `node --env-file=.env.local scripts/ensure-database-invariants.mjs`. Schema push replaces the old checked-in migration history and reapplies the overlap constraint through a repeatable script. Do not run the migration against the old production database unless that is explicitly chosen. The old repo remains a fallback until the new product journeys and real database integration are verified.
 
 The build script uses Next's documented `--webpack` option. Turbopack's production build intermittently failed while its CSS worker tried to bind an internal port in this execution environment; Webpack completed consistently. Development still uses the default Next dev bundler.

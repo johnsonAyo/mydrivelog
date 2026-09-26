@@ -179,13 +179,12 @@ export const bookings = pgTable("bookings", {
   check("bookings_positive_duration", sql`${table.endsAt} > ${table.startsAt}`),
 ]);
 
-// Exact lesson times are grouped into weekly drafts. Earlier free-form lists and window tables
-// remain for existing data while the collection workflow replaces them in the UI.
+// Exact lesson times are grouped into weekly drafts.
 export const availabilityCollections = pgTable("availability_collections", {
   id: uuid("id").primaryKey().defaultRandom(),
   workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  weekStart: date("week_start", { mode: "string" }),
+  weekStart: date("week_start", { mode: "string" }).notNull(),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

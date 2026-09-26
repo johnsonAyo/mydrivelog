@@ -46,7 +46,7 @@ export function availabilityRoutes(dependencies: AvailabilityRouteDependencies) 
             status: row.status,
           })),
         });
-        response.headers.set("Content-Disposition", 'attachment; filename="drivetrack-availability.json"');
+        response.headers.set("Content-Disposition", 'attachment; filename="mydrivelog-availability.json"');
         response.headers.set("Cache-Control", "private, no-store");
         return response;
       } catch {
