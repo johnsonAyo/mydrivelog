@@ -12,6 +12,6 @@ export default async function SchedulingPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(process.env.SESSION_COOKIE_NAME ?? "drivetrack_session")?.value;
   const session = await currentSessionResolver.resolve(token ?? null);
-  if (!session || session.workspaceStatus === "suspended") redirect("/sign-in");
+  if (!session || session.workspaceStatus === "suspended") redirect("/");
   return <ProductPage title="Scheduling settings" description="Set the rules for new availability and online lesson bookings."><SchedulingSettingsWorkspace /></ProductPage>;
 }

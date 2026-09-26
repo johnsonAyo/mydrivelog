@@ -17,7 +17,7 @@ export default async function LessonPage({ params }: { params: Promise<{ booking
   const cookieStore = await cookies();
   const token = cookieStore.get(process.env.SESSION_COOKIE_NAME ?? "drivetrack_session")?.value;
   const session = await currentSessionResolver.resolve(token ?? null);
-  if (!session || session.workspaceStatus === "suspended") redirect("/sign-in");
+  if (!session || session.workspaceStatus === "suspended") redirect("/");
   if (!await postgresLessonRepository.find(session.workspaceId, bookingId)) notFound();
   return <ProductPage
     title="Lesson debrief" description="Prepare, record, complete, and share on your terms."

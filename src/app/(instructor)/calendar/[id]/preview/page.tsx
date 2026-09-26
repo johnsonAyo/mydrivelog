@@ -20,7 +20,7 @@ export default async function BookingPreviewPage({ params, searchParams }: {
   const cookieStore = await cookies();
   const token = cookieStore.get(process.env.SESSION_COOKIE_NAME ?? "drivetrack_session")?.value;
   const session = await currentSessionResolver.resolve(token ?? null);
-  if (!session || session.workspaceStatus === "suspended") redirect("/sign-in");
+  if (!session || session.workspaceStatus === "suspended") redirect("/");
   const kind = (await searchParams).kind === "general" ? "general" : "invitation";
   const preview = await getCollectionPreview(session.workspaceId, id, kind);
   if (!preview) notFound();

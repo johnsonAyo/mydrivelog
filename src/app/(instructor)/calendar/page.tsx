@@ -12,8 +12,8 @@ export default async function CalendarPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(process.env.SESSION_COOKIE_NAME ?? "drivetrack_session")?.value;
   const session = await currentSessionResolver.resolve(token ?? null);
-  if (!session) redirect("/sign-in");
-  if (session.workspaceStatus === "suspended") redirect("/sign-in");
+  if (!session) redirect("/");
+  if (session.workspaceStatus === "suspended") redirect("/");
   const renderedAt = new Date();
 
   return (

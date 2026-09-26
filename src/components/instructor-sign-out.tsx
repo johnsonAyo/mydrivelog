@@ -18,7 +18,7 @@ export function InstructorSignOut() {
       const response = await fetch("/api/v1/auth/sign-out", { method: "POST" });
       if (!response.ok) throw new Error("Sign-out failed");
       try { await signOut(firebaseClientAuth()); } catch { /* The server session is already revoked. */ }
-      router.replace("/sign-in");
+      router.replace("/");
       router.refresh();
     } catch {
       setError("Could not sign out. Please try again.");

@@ -13,7 +13,7 @@ export default async function TodayPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(process.env.SESSION_COOKIE_NAME ?? "drivetrack_session")?.value;
   const session = await currentSessionResolver.resolve(token ?? null);
-  if (!session || session.workspaceStatus === "suspended") redirect("/sign-in");
+  if (!session || session.workspaceStatus === "suspended") redirect("/");
   const lessons = await listInstructorLessons(session.workspaceId, new Date());
   return <ProductPage
     title="Today" description="Today’s booked lessons and debriefs still waiting for you."

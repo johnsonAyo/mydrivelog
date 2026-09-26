@@ -8,7 +8,7 @@ export default async function InstructorLayout({ children }: { children: React.R
   const cookieStore = await cookies();
   const token = cookieStore.get(process.env.SESSION_COOKIE_NAME ?? "drivetrack_session")?.value;
   const session = await currentSessionResolver.resolve(token ?? null);
-  if (!session || session.workspaceStatus === "suspended") redirect("/sign-in");
+  if (!session || session.workspaceStatus === "suspended") redirect("/");
 
   return <div data-dt="product-shell">
     <InstructorSidebar instructorName={instructorFirstName(session.instructorName)} />

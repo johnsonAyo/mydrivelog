@@ -11,7 +11,7 @@ type Section = "product" | "workflow" | "faq";
 
 const sections: { id: Section; label: string }[] = [
   { id: "product", label: "Product" },
-  { id: "workflow", label: "How it works" },
+  { id: "workflow", label: "Workflow" },
   { id: "faq", label: "FAQ" },
 ];
 

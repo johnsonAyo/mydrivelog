@@ -17,7 +17,7 @@ export default async function ShareCollectionPage({ params }: { params: Promise<
   const cookieStore = await cookies();
   const token = cookieStore.get(process.env.SESSION_COOKIE_NAME ?? "drivetrack_session")?.value;
   const session = await currentSessionResolver.resolve(token ?? null);
-  if (!session || session.workspaceStatus === "suspended") redirect("/sign-in");
+  if (!session || session.workspaceStatus === "suspended") redirect("/");
   const [collection, contacts] = await Promise.all([getCollection(session.workspaceId, id), listContacts(session.workspaceId)]);
   if (!collection) notFound();
 
