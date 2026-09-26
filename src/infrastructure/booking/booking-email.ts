@@ -8,7 +8,7 @@ function parseSender(from: string): { name: string; email: string } {
   return { name: "MyDriveLog", email: from.trim() };
 }
 
-export async function sendBookingEmail(to: string, subject: string, body: string): Promise<EmailResult> {
+export async function sendBookingEmail(to: string, subject: string, body: string, idempotencyKey?: string): Promise<EmailResult> {
   const brevoApiKey = process.env.BREVO_API_KEY;
   const resendApiKey = process.env.RESEND_API_KEY;
   const from = process.env.ACCESS_EMAIL_FROM;
@@ -36,7 +36,7 @@ export async function sendBookingEmail(to: string, subject: string, body: string
 
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json", ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}) },
       body: JSON.stringify({ from, to: [to], subject, text: body }),
     });
     return response.ok ? "sent" : "failed";

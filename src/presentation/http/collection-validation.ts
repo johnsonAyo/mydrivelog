@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { isMonday } from "@/domain/collections/week";
 
-export const collectionNameSchema = z.object({ name: z.string().trim().min(2).max(100) });
 export const collectionWeekSchema = z.object({ weekStart: z.string().refine(isMonday, "Choose a Monday–Sunday week") });
 
 export const exactSlotSchema = z.object({

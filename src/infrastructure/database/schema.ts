@@ -1,9 +1,11 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -32,9 +34,14 @@ export const instructorIdentities = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email").notNull(),
+    firebaseUid: text("firebase_uid"),
+    fullName: text("full_name"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("instructor_identities_email_unique").on(sql`lower(${table.email})`)],
+  (table) => [
+    uniqueIndex("instructor_identities_email_unique").on(sql`lower(${table.email})`),
+    uniqueIndex("instructor_identities_firebase_uid_unique").on(table.firebaseUid),
+  ],
 );
 
 export const workspaces = pgTable(
@@ -54,6 +61,7 @@ export const workspaces = pgTable(
     weeklyBookingAllowance: weeklyBookingAllowance("weekly_booking_allowance")
       .notNull()
       .default("unlimited"),
+    pilotActive: boolean("pilot_active").notNull().default(true),
     trialStartedAt: timestamp("trial_started_at", { withTimezone: true }),
     trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
     paidThrough: timestamp("paid_through", { withTimezone: true }),
@@ -86,6 +94,7 @@ export const authChallenges = pgTable(
     tokenHash: text("token_hash").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    attempts: integer("attempts").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -170,13 +179,12 @@ export const bookings = pgTable("bookings", {
   check("bookings_positive_duration", sql`${table.endsAt} > ${table.startsAt}`),
 ]);
 
-// Exact lesson times are grouped into weekly drafts. Earlier free-form lists and window tables
-// remain for existing data while the collection workflow replaces them in the UI.
+// Exact lesson times are grouped into weekly drafts.
 export const availabilityCollections = pgTable("availability_collections", {
   id: uuid("id").primaryKey().defaultRandom(),
   workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  weekStart: date("week_start", { mode: "string" }),
+  weekStart: date("week_start", { mode: "string" }).notNull(),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -245,4 +253,59 @@ export const collectionBookings = pgTable("collection_bookings", {
 }, (table) => [
   index("collection_bookings_collection_idx").on(table.collectionId),
   uniqueIndex("collection_bookings_one_active_per_slot").on(table.slotId).where(sql`${table.status} = 'confirmed'`),
+]);
+
+// A debrief belongs to the booking, not its availability slot: moving a lesson does not
+// transfer private notes to whoever might book the vacated time. Both booking models
+// remain readable while older availability records are still supported.
+export const lessonDebriefs = pgTable("lesson_debriefs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  collectionBookingId: uuid("collection_booking_id").references(() => collectionBookings.id, { onDelete: "restrict" }),
+  legacyBookingId: uuid("legacy_booking_id").references(() => bookings.id, { onDelete: "restrict" }),
+  privateNotes: text("private_notes").notNull().default(""),
+  whatWeWorkedOn: text("what_we_worked_on").notNull().default(""),
+  whatToPractise: text("what_to_practise").notNull().default(""),
+  nextLessonFocus: text("next_lesson_focus").notNull().default(""),
+  revision: integer("revision").notNull().default(0),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("lesson_debriefs_collection_booking_unique").on(table.collectionBookingId),
+  uniqueIndex("lesson_debriefs_legacy_booking_unique").on(table.legacyBookingId),
+  index("lesson_debriefs_workspace_updated_idx").on(table.workspaceId, table.updatedAt),
+  check("lesson_debriefs_exactly_one_booking", sql`(${table.collectionBookingId} is not null) <> (${table.legacyBookingId} is not null)`),
+  check("lesson_debriefs_revision_nonnegative", sql`${table.revision} >= 0`),
+]);
+
+export const lessonSkillAssessments = pgTable("lesson_skill_assessments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  debriefId: uuid("debrief_id").notNull().references(() => lessonDebriefs.id, { onDelete: "cascade" }),
+  skill: text("skill").notNull(),
+  outcome: text("outcome").notNull(),
+}, (table) => [
+  uniqueIndex("lesson_skill_assessments_unique").on(table.debriefId, sql`lower(${table.skill})`),
+  check("lesson_skill_assessments_outcome", sql`${table.outcome} in ('introduced', 'developing', 'confident')`),
+]);
+
+export const lessonMessages = pgTable("lesson_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  debriefId: uuid("debrief_id").notNull().references(() => lessonDebriefs.id, { onDelete: "restrict" }),
+  kind: text("kind").notNull(),
+  idempotencyKey: uuid("idempotency_key").notNull(),
+  recipientEmail: text("recipient_email").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  sharedSnapshot: jsonb("shared_snapshot").notNull(),
+  status: text("status").notNull().default("queued"),
+  attempts: integer("attempts").notNull().default(0),
+  lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("lesson_messages_debrief_key_unique").on(table.debriefId, table.idempotencyKey),
+  uniqueIndex("lesson_messages_one_recap_unique").on(table.debriefId).where(sql`${table.kind} = 'recap'`),
+  check("lesson_messages_kind", sql`${table.kind} in ('recap', 'follow_up')`),
+  check("lesson_messages_status", sql`${table.status} in ('queued', 'sending', 'delivered', 'needs_attention')`),
 ]);

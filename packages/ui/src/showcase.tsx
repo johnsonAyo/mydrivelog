@@ -9,7 +9,7 @@ export function ShowcaseIntro({ title, description }: { title: string; descripti
   return (
     <header data-dt="lab-intro">
       <Stack gap="4">
-        <Text variant="eyebrow">DriveTrack product system</Text>
+        <Text variant="eyebrow">MyDriveLog product system</Text>
         <Heading as="h1" size="hero">{title}</Heading>
         <Text variant="muted">{description}</Text>
       </Stack>

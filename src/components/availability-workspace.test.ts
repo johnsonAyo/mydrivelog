@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { apiError } from "./availability-workspace";
+import { apiError } from "./api-error";
 
 describe("availability API errors", () => {
   it("shows the problem title returned by the API", async () => {

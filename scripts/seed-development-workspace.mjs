@@ -12,13 +12,18 @@ const sql = postgres(databaseUrl, { max: 1, prepare: false });
 try {
   await sql.begin(async (transaction) => {
     await transaction`
-      insert into instructor_identities (email)
-      values ('development-instructor@drivetrack.local')
+      insert into instructor_identities (email, full_name)
+      values ('development-instructor@drivetrack.local', 'Alex')
       on conflict do nothing
     `;
     const [identity] = await transaction`
       select id from instructor_identities
       where lower(email) = 'development-instructor@drivetrack.local'
+    `;
+    await transaction`
+      update instructor_identities
+      set full_name = 'Alex'
+      where id = ${identity.id} and (full_name is null or full_name = '')
     `;
     await transaction`
       insert into workspaces (id, owner_identity_id, name)

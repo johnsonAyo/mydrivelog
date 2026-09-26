@@ -5,7 +5,7 @@ import { canLearnerChange, hasBookingNotice, weeklyBookingLimit } from "@/domain
 import { isWithinWeek, weekLabel } from "@/domain/collections/week";
 import { listLearners } from "@/infrastructure/learners/postgres-learner-repository";
 
-type CollectionRow = { id: string; name: string; week_start: string | null; status: "draft" | "live"; updated_at: string; workspace_id: string };
+type CollectionRow = { id: string; name: string; week_start: string; status: "draft" | "live"; updated_at: string; workspace_id: string };
 type SlotRow = { id: string; starts_at: string; ends_at: string; status: "private" | "open" | "booked" | "closed" };
 type InviteRow = { id: string; name: string; email: string; email_status: string };
 type BookingRow = { id: string; slot_id: string; name: string; email: string; status: string; starts_at: string; ends_at: string; confirmation_email_status: string };
@@ -37,7 +37,7 @@ export async function listContacts(workspaceId: string) {
 export async function getInstructorForWorkspace(workspaceId: string) {
   const { client } = getDatabase();
   const [row] = await client<{ name: string; email: string; timezone: string }[]>`
-    select w.name, i.email, w.timezone from workspaces w join instructor_identities i on i.id = w.owner_identity_id where w.id = ${workspaceId}
+    select coalesce(nullif(i.full_name, ''), 'Your instructor') as name, i.email, w.timezone from workspaces w join instructor_identities i on i.id = w.owner_identity_id where w.id = ${workspaceId}
   `;
   return row ?? null;
 }
@@ -79,7 +79,7 @@ export async function getCollectionPreview(workspaceId: string, id: string, kind
   if (!collection) return null;
   const { client } = getDatabase();
   const [instructor] = await client<{ name: string; email: string; contact_phone: string | null; timezone: string; minimum_booking_notice_hours: number }[]>`
-    select w.name, i.email, w.contact_phone, w.timezone, w.minimum_booking_notice_hours from workspaces w
+    select coalesce(nullif(i.full_name, ''), 'Your instructor') as name, i.email, w.contact_phone, w.timezone, w.minimum_booking_notice_hours from workspaces w
       join instructor_identities i on i.id = w.owner_identity_id where w.id = ${workspaceId}
   `;
   const slots = await client<SlotRow[]>`
@@ -103,12 +103,6 @@ export async function getCollectionPreview(workspaceId: string, id: string, kind
     kind, slots: slots.map((slot) => ({ id: slot.id, startsAt: iso(slot.starts_at), endsAt: iso(slot.ends_at) })), ownBookings: [] };
 }
 
-export async function renameCollection(workspaceId: string, id: string, name: string) {
-  const { client } = getDatabase();
-  const rows = await client<{ id: string }[]>`update availability_collections set name = ${name}, updated_at = now() where id = ${id} and workspace_id = ${workspaceId} and week_start is null returning id`;
-  return rows.length > 0;
-}
-
 export async function saveSlot(workspaceId: string, collectionId: string, input: { id?: string; startsAt: Date; endsAt: Date; makeAvailable: boolean }) {
   const { client } = getDatabase();
   return client.begin(async (sql) => {
@@ -116,7 +110,7 @@ export async function saveSlot(workspaceId: string, collectionId: string, input:
     const [settings] = await sql<{ buffer_warning_minutes: number; timezone: string }[]>`select buffer_warning_minutes, timezone from workspaces where id = ${workspaceId} for update`;
     const [collection] = await sql<CollectionRow[]>`select * from availability_collections where id = ${collectionId} and workspace_id = ${workspaceId} for update`;
     if (!collection) return { ok: false as const, reason: "not_found" as const };
-    if (collection.week_start && (!isWithinWeek(input.startsAt, collection.week_start, settings.timezone) || !isWithinWeek(input.endsAt, collection.week_start, settings.timezone))) {
+    if (!isWithinWeek(input.startsAt, collection.week_start, settings.timezone) || !isWithinWeek(input.endsAt, collection.week_start, settings.timezone)) {
       return { ok: false as const, reason: "outside_week" as const };
     }
     const others = await sql<SlotRow[]>`
@@ -202,7 +196,7 @@ async function resolvePublicToken(token: string): Promise<PublicContext | null> 
   const { client } = getDatabase();
   const tokenHash = hash(token);
   const [context] = await client<PublicContext[]>`
-    select c.id as collection_id, w.id as workspace_id, w.name as instructor_name,
+    select c.id as collection_id, w.id as workspace_id, coalesce(nullif(ii.full_name, ''), 'Your instructor') as instructor_name,
       ii.email as instructor_email, w.contact_phone, w.timezone, w.minimum_booking_notice_hours, w.weekly_booking_allowance, c.status,
       identity.name, identity.email, identity.kind
     from (
@@ -343,7 +337,7 @@ export async function changeCollectionBooking(input: {
     await sql`select pg_advisory_xact_lock(hashtextextended(${workspaceId}, 0))`;
     const [booking] = await sql<{ id: string; slot_id: string; name: string; email: string; status: string; starts_at: string; ends_at: string; collection_status: string; instructor_name: string; instructor_email: string; timezone: string; notice_hours: number }[]>`
       select b.id, b.slot_id, b.name, b.email, b.status, s.starts_at, s.ends_at, c.status as collection_status,
-        w.name as instructor_name, i.email as instructor_email, w.timezone, w.minimum_booking_notice_hours as notice_hours
+        coalesce(nullif(i.full_name, ''), 'Your instructor') as instructor_name, i.email as instructor_email, w.timezone, w.minimum_booking_notice_hours as notice_hours
       from collection_bookings b join collection_slots s on s.id = b.slot_id
         join availability_collections c on c.id = b.collection_id
         join workspaces w on w.id = c.workspace_id join instructor_identities i on i.id = w.owner_identity_id

@@ -1,1 +1,0 @@
-ALTER TABLE "collection_general_links" ADD COLUMN "token" text NOT NULL;

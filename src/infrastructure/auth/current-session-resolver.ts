@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { SessionResolver } from "@/application/auth/session-context";
 import { getDatabase } from "@/infrastructure/database/client";
-import { workspaces } from "@/infrastructure/database/schema";
+import { instructorIdentities, workspaces } from "@/infrastructure/database/schema";
 import { postgresSessionResolver } from "./postgres-session-resolver";
 
 export const currentSessionResolver: SessionResolver = {
@@ -17,10 +17,13 @@ export const currentSessionResolver: SessionResolver = {
         identityId: workspaces.ownerIdentityId,
         workspaceId: workspaces.id,
         workspaceStatus: workspaces.status,
+        pilotActive: workspaces.pilotActive,
         trialEndsAt: workspaces.trialEndsAt,
         paidThrough: workspaces.paidThrough,
+        instructorName: instructorIdentities.fullName,
       })
       .from(workspaces)
+      .leftJoin(instructorIdentities, eq(instructorIdentities.id, workspaces.ownerIdentityId))
       .where(eq(workspaces.id, workspaceId))
       .limit(1);
 

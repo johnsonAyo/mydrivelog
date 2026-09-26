@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { SessionResolver } from "@/application/auth/session-context";
 import { getDatabase } from "@/infrastructure/database/client";
-import { instructorSessions, workspaces } from "@/infrastructure/database/schema";
+import { instructorIdentities, instructorSessions, workspaces } from "@/infrastructure/database/schema";
 
 export const postgresSessionResolver: SessionResolver = {
   async resolve(rawToken) {
@@ -14,11 +14,14 @@ export const postgresSessionResolver: SessionResolver = {
         identityId: instructorSessions.identityId,
         workspaceId: workspaces.id,
         workspaceStatus: workspaces.status,
+        pilotActive: workspaces.pilotActive,
         trialEndsAt: workspaces.trialEndsAt,
         paidThrough: workspaces.paidThrough,
+        instructorName: instructorIdentities.fullName,
       })
       .from(instructorSessions)
       .innerJoin(workspaces, eq(workspaces.ownerIdentityId, instructorSessions.identityId))
+      .innerJoin(instructorIdentities, eq(instructorIdentities.id, instructorSessions.identityId))
       .where(
         and(
           eq(instructorSessions.tokenHash, tokenHash),

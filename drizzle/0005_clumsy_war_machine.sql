@@ -1,2 +1,0 @@
-ALTER TABLE "availability_collections" ADD COLUMN "week_start" date;--> statement-breakpoint
-CREATE UNIQUE INDEX "availability_collections_workspace_week_unique" ON "availability_collections" USING btree ("workspace_id","week_start");

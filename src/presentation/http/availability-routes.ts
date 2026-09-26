@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { SessionResolver } from "@/application/auth/session-context";
+import { canWriteWorkspace } from "@/application/auth/can-write-workspace";
 import type { AvailabilityRepository } from "@/application/availability/availability-repository";
 import { createAvailabilityUseCase } from "@/application/availability/create-availability";
 import { listAvailabilityUseCase } from "@/application/availability/list-availability";
@@ -45,7 +46,7 @@ export function availabilityRoutes(dependencies: AvailabilityRouteDependencies) 
             status: row.status,
           })),
         });
-        response.headers.set("Content-Disposition", 'attachment; filename="drivetrack-availability.json"');
+        response.headers.set("Content-Disposition", 'attachment; filename="mydrivelog-availability.json"');
         response.headers.set("Cache-Control", "private, no-store");
         return response;
       } catch {
@@ -93,8 +94,7 @@ export function availabilityRoutes(dependencies: AvailabilityRouteDependencies) 
         }
 
         const currentTime = dependencies.now?.() ?? new Date();
-        const { trialEndsAt, paidThrough } = authentication.session;
-        if (!authentication.session.testingWorkspace && (!trialEndsAt || trialEndsAt <= currentTime) && (!paidThrough || paidThrough <= currentTime)) {
+        if (!canWriteWorkspace(authentication.session, currentTime)) {
           return problem(403, "trial_expired", "Pilot access has ended. Your availability remains available to view and export.");
         }
 
