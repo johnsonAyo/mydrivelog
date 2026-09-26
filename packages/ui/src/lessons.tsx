@@ -5,7 +5,7 @@ import { Badge, Heading, Text, TextareaField } from "./primitives";
 const lessonStateLabels: Record<TimelineLesson["state"], string> = {
   upcoming: "Upcoming",
   "in-progress": "In progress",
-  "awaiting-debrief": "Debrief due",
+  "awaiting-debrief": "Awaiting debrief",
   completed: "Completed",
 };
 
@@ -23,7 +23,7 @@ export function TodayTimeline({ title = "Today’s lessons", lessons }: { title?
             <div data-dt="timeline-marker" aria-hidden="true" />
             <div data-dt="timeline-lesson">
               <div>
-                <strong>{lesson.name}</strong>
+                <strong>{lesson.href ? <a href={lesson.href}>{lesson.name} · Open lesson</a> : lesson.name}</strong>
                 <Text variant="muted">{lesson.detail}</Text>
               </div>
               <Badge tone={lesson.state === "awaiting-debrief" ? "warning" : lesson.state === "completed" ? "success" : "neutral"}>

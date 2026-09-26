@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { CalendarDays, SlidersHorizontal, UsersRound } from "lucide-react";
+import { CalendarDays, ListChecks, SlidersHorizontal, UsersRound } from "lucide-react";
 import { ProductShell } from "@drivetrack/ui";
 import { AvailabilityWorkspace } from "@/components/availability-workspace";
 import { InstructorSignOut } from "@/components/instructor-sign-out";
@@ -21,7 +21,7 @@ export default async function CalendarPage() {
   return (
     <ProductShell
       brand="MyDriveLog"
-      navigation={[{ href: "/calendar", label: "Calendar", icon: <CalendarDays size={17} />, active: true }, { href: "/learners", label: "Learners", icon: <UsersRound size={17} /> }, { href: "/settings/scheduling", label: "Scheduling", icon: <SlidersHorizontal size={17} /> }]}
+      navigation={[{ href: "/today", label: "Today", icon: <ListChecks size={17} /> }, { href: "/calendar", label: "Calendar", icon: <CalendarDays size={17} />, active: true }, { href: "/learners", label: "Learners", icon: <UsersRound size={17} /> }, { href: "/settings/scheduling", label: "Scheduling", icon: <SlidersHorizontal size={17} /> }]}
       title="Your calendar"
       description="Create availability, share booking links, and see confirmed lessons."
       identity="Independent instructor workspace"

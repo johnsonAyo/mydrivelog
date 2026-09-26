@@ -7,6 +7,8 @@ export { AvailabilitySlotCard, AvailabilityCalendar, AvailabilityEditor, Availab
 export { SchedulingSettingsForm, AvailabilityWindowPanel, PublicBookingPicker } from "./booking";
 export type { SchedulingSettings, WindowDetail, ReleasedLink, PublicBooking } from "./booking";
 export { TodayTimeline, LessonContextCard, DebriefComposer } from "./lessons";
+export { LessonDetail } from "./lesson-detail";
+export type { LessonView, LessonFields, LessonSkill, LessonPreview } from "./lesson-detail";
 export { SchedulingNotice, AvailabilityReleaseSummary, BookingSummaryCard } from "./operations";
 export type { CalendarSlot, TimelineLesson } from "./models";
 export { Showcase, ShowcaseIntro, ShowcaseSection, ShowcaseGrid } from "./showcase";

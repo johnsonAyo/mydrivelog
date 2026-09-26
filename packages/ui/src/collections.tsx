@@ -60,13 +60,14 @@ export function CollectionChooser({ weeks, earlierLists, monthLabel, selectedId,
   </section>;
 }
 
-export function CollectionEditor({ collection, contacts, defaultDuration, defaultGap, onSaveSlot, onSetStatus, onGenerate, onInvite, onGeneralLink, onPreview, onChangeBooking, generalUrl, lastInvitation, busy, error, notice, errorArea = "time", noticeArea = "share" }: {
+export function CollectionEditor({ collection, contacts, defaultDuration, defaultGap, onSaveSlot, onSetStatus, onGenerate, onInvite, onGeneralLink, onPreview, onChangeBooking, lessonHref, generalUrl, lastInvitation, busy, error, notice, errorArea = "time", noticeArea = "share" }: {
   collection: CollectionDetail; contacts: readonly ContactOption[]; defaultDuration: number; defaultGap: number;
   onSaveSlot: (input: SlotInput, id?: string) => Promise<boolean>; onSetStatus: (slotId: string, status: "private" | "open" | "closed") => Promise<void>;
   onGenerate: (input: { date: string; from: string; to: string; duration: number; gap: number }) => Promise<void>;
   onInvite: (name: string, email: string) => Promise<void>; onGeneralLink: () => Promise<void>;
   onPreview: (kind: "invitation" | "general") => Promise<PublicCollection>;
   onChangeBooking?: (bookingId: string, action: "cancel" | "reschedule", slotId?: string) => Promise<void>;
+  lessonHref?: (bookingId: string) => string;
   generalUrl: string | null; lastInvitation: { url: string; emailStatus: string } | null; busy: boolean; error: string | null; notice: string | null;
   errorArea?: CollectionFeedbackArea | null; noticeArea?: CollectionFeedbackArea | null;
 }) {
@@ -171,7 +172,7 @@ export function CollectionEditor({ collection, contacts, defaultDuration, defaul
         {[...groups].map(([day, slots]) => <section key={day} data-dt="collection-day"><h3>{displayDate(slots[0].startsAt)}</h3><ul>{slots.map((slot) => {
           const booking = collection.bookings.find((item) => item.slotId === slot.id);
           return <li key={slot.id} data-state={slot.status}><div data-dt="collection-slot-time"><strong>{displayTime(slot.startsAt)}–{displayTime(slot.endsAt)}</strong><Badge tone={slot.status === "booked" ? "warning" : slot.status === "open" ? "success" : "neutral"}>{slot.status === "open" ? "Bookable" : slot.status === "private" ? "Private" : slot.status === "booked" ? "Booked" : "Closed"}</Badge></div>
-            {booking && <small>Booked by {booking.name} · {booking.email}</small>}
+            {booking && <small>Booked by {booking.name} · {booking.email} {lessonHref && <a href={lessonHref(booking.id)}>Open lesson</a>}</small>}
             {booking && onChangeBooking && <div data-dt="collection-booking-actions"><Button type="button" variant="ghost" size="2" disabled={busy} onClick={() => { setChangingBookingId(changingBookingId === booking.id ? null : booking.id); setReplacementSlotId(""); }}>Move lesson</Button><Button type="button" variant="ghost" size="2" disabled={busy} onClick={() => { if (window.confirm(`Cancel ${booking.name}’s lesson? They will be notified if email is connected.`)) void onChangeBooking(booking.id, "cancel"); }}>Cancel lesson</Button></div>}
             {booking && changingBookingId === booking.id && <div data-dt="collection-booking-move"><SelectField id={`move-${booking.id}`} label="Move to an open time in this week" value={replacementSlotId} onChange={(event) => setReplacementSlotId(event.target.value)}><option value="">Choose a time</option>{collection.slots.filter((candidate) => candidate.status === "open" && new Date(candidate.startsAt) > new Date()).map((candidate) => <option key={candidate.id} value={candidate.id}>{displayDate(candidate.startsAt)} · {displayTime(candidate.startsAt)}–{displayTime(candidate.endsAt)}</option>)}</SelectField><Button type="button" disabled={!replacementSlotId || busy} onClick={() => { if (onChangeBooking) void onChangeBooking(booking.id, "reschedule", replacementSlotId); }}>Confirm move</Button></div>}
             {slot.status !== "booked" && <div data-dt="collection-row-actions"><Button type="button" variant="ghost" size="2" onClick={() => edit(slot)}>Edit</Button>{slot.status === "private" && collection.status === "live" && <Button type="button" variant="ghost" size="2" onClick={() => void onSetStatus(slot.id, "open")}>Make available</Button>}{slot.status === "open" && <Button type="button" variant="ghost" size="2" onClick={() => void onSetStatus(slot.id, "closed")}>Close time</Button>}{slot.status === "closed" && <Button type="button" variant="ghost" size="2" onClick={() => void onSetStatus(slot.id, collection.status === "live" ? "open" : "private")}>Reopen</Button>}</div>}
