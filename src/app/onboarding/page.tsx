@@ -11,6 +11,6 @@ export default async function OnboardingPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(process.env.SESSION_COOKIE_NAME ?? "drivetrack_session")?.value;
   const session = await currentSessionResolver.resolve(token ?? null);
-  if (!session) redirect("/sign-in");
+  if (!session) redirect("/");
   return <main data-dt="access-page"><InstructorOnboarding /></main>;
 }

@@ -3,7 +3,6 @@
 import {
   ArrowUpRight,
   CalendarDays,
-  Check,
   ChevronRight,
   Clock3,
   MapPin,
@@ -26,13 +25,13 @@ const lessons = [
     time: "11:30",
     name: "Owen P.",
     detail: "Dual carriageways · Lesson 12",
-    status: "Debrief due",
+    status: "Awaiting debrief",
   },
   {
     time: "14:00",
     name: "Sofia R.",
     detail: "Bay parking · Lesson 5",
-    status: "Ready",
+    status: "Booked",
   },
 ];
 
@@ -41,7 +40,7 @@ function TodayPreview() {
     <div className="product-window">
       <div className="product-window__topbar">
         <div>
-          <p className="eyebrow">Tuesday, 24 September</p>
+          <p className="eyebrow">Tuesday, 22 September</p>
           <h3>Today</h3>
         </div>
         <Badge className="status-badge">
@@ -84,7 +83,7 @@ function TodayPreview() {
           <div className="continuity-block">
             <span>Last lesson</span>
             <strong>Roundabout positioning</strong>
-            <p>Good mirror routine. Hesitant choosing the correct lane on approach.</p>
+            <p>Mirrors were consistent. Maya needed help choosing her lane on approach.</p>
           </div>
           <div className="continuity-block continuity-block--next">
             <span>Next focus</span>
@@ -104,15 +103,15 @@ function TodayPreview() {
 }
 
 function CalendarPreview() {
-  const days = ["Mon 23", "Tue 24", "Wed 25", "Thu 26", "Fri 27"];
+  const days = ["Mon 21", "Tue 22", "Wed 23", "Thu 24", "Fri 25"];
   return (
     <div className="product-window calendar-preview">
       <div className="product-window__topbar">
         <div>
           <p className="eyebrow">Teaching week</p>
-          <h3>September 23–27</h3>
+          <h3>September 21–25</h3>
         </div>
-        <Badge className="status-badge"><CalendarDays /> 11 lessons</Badge>
+        <Badge className="status-badge"><CalendarDays /> 5 days planned</Badge>
       </div>
       <div className="week-grid">
         {days.map((day, index) => (
@@ -134,20 +133,16 @@ function BookingPreview() {
     <div className="product-window booking-preview">
       <div className="booking-preview__copy">
         <p className="eyebrow">Learner booking link</p>
-        <h3>Only the lesson times you release.</h3>
-        <p>Maya sees a simple, personal list of suitable times—not your full calendar.</p>
-        <div className="booking-benefits">
-          <span><Check /> Duration and pickup point included</span>
-          <span><Check /> Your weekly availability stays protected</span>
-        </div>
+        <h3>This is what Maya gets.</h3>
+        <p>She can choose from the times you’ve offered her and check the pickup point before booking.</p>
       </div>
       <Card className="booking-card">
         <CardContent>
           <div className="booking-card__heading">
             <div className="avatar">MA</div>
-            <div><strong>Maya’s next lesson</strong><span>Choose one available time</span></div>
+            <div><strong>Maya’s lesson times</strong><span>Choose one available time</span></div>
           </div>
-          {["Wed 25 · 11:30", "Thu 26 · 14:00", "Fri 27 · 09:00"].map((slot) => (
+          {["Wed 23 · 11:30", "Thu 24 · 14:00", "Fri 25 · 09:00"].map((slot) => (
             <button className="booking-option" key={slot} type="button">
               <Clock3 /> <span>{slot}</span> <ChevronRight />
             </button>

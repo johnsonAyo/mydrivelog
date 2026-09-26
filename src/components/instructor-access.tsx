@@ -15,8 +15,11 @@ async function openWorkspace(idToken: string): Promise<string> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ idToken }),
   });
-  if (!response.ok) throw new Error("We couldn’t open your workspace. Please try again.");
-  const data = await response.json() as { next: string };
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { detail?: string; title?: string } | null;
+    throw new Error(data?.detail || data?.title || "We couldn’t open your workspace. Please try again.");
+  }
+  const data = (await response.json()) as { next: string };
   return data.next;
 }
 
@@ -32,14 +35,17 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
     if (window.sessionStorage.getItem("mydrivelog.googleRedirect") !== "pending") return;
     window.sessionStorage.removeItem("mydrivelog.googleRedirect");
     const auth = firebaseClientAuth();
-    getRedirectResult(auth).then(async (result) => {
-      await auth.authStateReady();
-      const user = result?.user ?? auth.currentUser;
-      if (!user) throw new Error("Google sign-in didn’t finish. Please try again.");
-      const next = await openWorkspace(await user.getIdToken());
-      router.replace(next);
-      router.refresh();
-    }).catch(() => setError("Google sign-in didn’t finish. Please try again.")).finally(() => setBusy(false));
+    getRedirectResult(auth)
+      .then(async (result) => {
+        await auth.authStateReady();
+        const user = result?.user ?? auth.currentUser;
+        if (!user) throw new Error("Google sign-in didn’t finish. Please try again.");
+        const next = await openWorkspace(await user.getIdToken());
+        router.replace(next);
+        router.refresh();
+      })
+      .catch((cause) => setError(cause instanceof Error ? cause.message : "Google sign-in didn’t finish. Please try again."))
+      .finally(() => setBusy(false));
   }, [router]);
 
   async function sendCode(event: FormEvent<HTMLFormElement>) {
@@ -74,7 +80,7 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
         body: JSON.stringify({ email, code }),
       });
       if (!response.ok) throw new Error(response.status === 400 ? "That code is invalid or expired. Check your email or request a new one." : "We couldn’t verify your code right now.");
-      const { customToken } = await response.json() as { customToken: string };
+      const { customToken } = (await response.json()) as { customToken: string };
       const credential = await signInWithCustomToken(firebaseClientAuth(), customToken);
       const next = await openWorkspace(await credential.user.getIdToken());
       router.replace(next);
@@ -90,7 +96,10 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
     setBusy(true);
     setError("");
     try {
-      const credential = await signInWithPopup(firebaseClientAuth(), new GoogleAuthProvider());
+      const auth = firebaseClientAuth();
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const credential = await signInWithPopup(auth, provider);
       const next = await openWorkspace(await credential.user.getIdToken());
       router.replace(next);
       router.refresh();
@@ -99,13 +108,24 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
       if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
         try {
           window.sessionStorage.setItem("mydrivelog.googleRedirect", "pending");
-          await signInWithRedirect(firebaseClientAuth(), new GoogleAuthProvider());
+          const auth = firebaseClientAuth();
+          const provider = new GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: "select_account" });
+          await signInWithRedirect(auth, provider);
           return;
         } catch {
           window.sessionStorage.removeItem("mydrivelog.googleRedirect");
         }
       }
-      setError(code === "auth/popup-closed-by-user" ? "Google sign-in was closed." : "Google sign-in didn’t finish. Please try again.");
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        setError("Google sign-in was closed.");
+      } else if (code === "auth/unauthorized-domain") {
+        setError("This domain is not authorised for Google sign-in in Firebase.");
+      } else if (cause instanceof Error && cause.message) {
+        setError(cause.message);
+      } else {
+        setError("Google sign-in didn’t finish. Please try again.");
+      }
       setBusy(false);
     }
   }

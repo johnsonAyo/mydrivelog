@@ -9,24 +9,19 @@ import {
 
 const questions = [
   {
-    question: "Is MyDriveLog built for independent instructors?",
+    question: "Can I offer two lessons on the same day?",
     answer:
-      "Yes. The workspace is designed around one instructor managing their teaching week, lesson availability, bookings, and debriefs.",
+      "Yes. Add each lesson time separately. They’ll appear together in the same day of your teaching week.",
   },
   {
-    question: "How do learner booking links work?",
+    question: "Can someone new use a booking link?",
     answer:
-      "Send each learner a personal link that shows only the lesson slots you have chosen to release. Your wider calendar stays out of view.",
+      "Yes. Create a general link for new enquiries. They’ll enter their name and confirm their email before booking.",
   },
   {
-    question: "Can I keep notes private?",
+    question: "Do I have to send a recap after every lesson?",
     answer:
-      "Yes. Debriefs can include learner-facing notes and separate private context for your own preparation.",
-  },
-  {
-    question: "Does it replace my calendar?",
-    answer:
-      "MyDriveLog gives you a teaching-focused calendar so availability, bookings, travel gaps, and lesson context stay connected.",
+      "No. You can complete a lesson without emailing the learner. If you write a recap, you review it and choose whether to send it after the lesson ends.",
   },
 ];
 

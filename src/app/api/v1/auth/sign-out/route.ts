@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   const cookieName = process.env.SESSION_COOKIE_NAME ?? "drivetrack_session";
   const token = request.cookies.get(cookieName)?.value;
   if (token) await postgresAuthRepository.revokeSession(createHash("sha256").update(token).digest("hex"));
-  const response = NextResponse.json({ next: "/sign-in" }, { headers: { "Cache-Control": "private, no-store" } });
+  const response = NextResponse.json({ next: "/" }, { headers: { "Cache-Control": "private, no-store" } });
   response.cookies.delete(cookieName);
   return response;
 }
