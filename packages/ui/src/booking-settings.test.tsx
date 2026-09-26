@@ -7,7 +7,7 @@ describe("scheduling settings", () => {
     const html = renderToStaticMarkup(<SchedulingSettingsForm settings={{
       name: "Avery Instructor", timezone: "Europe/London", defaultSessionMinutes: 120,
       bufferWarningMinutes: 30, weeklyBookingAllowance: "two", minimumBookingNoticeHours: 24, contactPhone: null,
-    }} onSave={async () => null} />);
+    }} onSave={async () => {}} />);
 
     expect(html).toContain("¾ hour");
     expect(html).toContain("2 hours");

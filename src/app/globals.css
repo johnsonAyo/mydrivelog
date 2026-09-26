@@ -1418,7 +1418,6 @@ h3 {
 [data-dt="lesson-preview"], [data-dt="lesson-messages"] article { padding: var(--space-4); border: 1px solid var(--line); border-radius: .75rem; }
 [data-dt="lesson-preview"] pre, [data-dt="lesson-messages"] pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 [data-dt="lesson-messages"] article { display: grid; gap: var(--space-2); }
-[data-dt="lesson-action-error"] { color: var(--danger-deep); }
 @media (max-width: 640px) { [data-dt="lesson-panel-header"] { display: grid; } [data-dt="lesson-skill-row"] { grid-template-columns: 1fr; } [data-dt="lesson-skill-row"] label, [data-dt="lesson-skill-row"] input, [data-dt="lesson-skill-row"] select, [data-dt="lesson-skill-row"] button { grid-row: auto; } }
 [data-dt="timeline-lesson"] { display: flex; justify-content: space-between; align-items: start; gap: .6rem; padding: .8rem; border: 1px solid var(--line); border-radius: var(--product-control-radius); }
 [data-dt="timeline-lesson"] strong { font-size: .88rem; }

@@ -2,37 +2,34 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { EmptyState, LearnerDirectory, type Learner } from "@drivetrack/ui";
+import { EmptyState, LearnerDirectory, toast, type Learner } from "@drivetrack/ui";
+import { requestJson, toastError } from "./api-request";
+
+async function fetchLearners() {
+  return (await requestJson<{ data: Learner[] }>("/api/v1/learners")).data;
+}
 
 export function LearnerDirectoryWorkspace() {
   const [learners, setLearners] = useState<Learner[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  async function load() {
-    const response = await fetch("/api/v1/learners", { cache: "no-store" });
-    if (!response.ok) throw new Error("Learners unavailable");
-    const json: { data: Learner[] } = await response.json();
-    setLearners(json.data);
-  }
   useEffect(() => {
     let active = true;
-    fetch("/api/v1/learners", { cache: "no-store" }).then(async (response) => {
-      if (!response.ok) throw new Error("Learners unavailable");
-      const json: { data: Learner[] } = await response.json();
-      if (active) setLearners(json.data);
-    }).catch(() => { if (active) setMessage("Could not load learners. Refresh to try again."); });
+    fetchLearners().then((data) => { if (active) setLearners(data); })
+      .catch(() => { if (active) setLoadFailed(true); });
     return () => { active = false; };
   }, []);
   async function save(input: { sourceEmail: string; name: string; email: string }) {
     setBusy(true);
     try {
-      const response = await fetch("/api/v1/learners", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
-      if (!response.ok) throw new Error("Could not save this learner");
-      await load();
-      setMessage("Learner details saved.");
-    } catch { setMessage("Could not save this learner. Please try again."); throw new Error("Save failed"); }
-    finally { setBusy(false); }
+      await requestJson("/api/v1/learners", { method: "POST", body: input });
+      toast.success("Learner details saved");
+    } catch (cause) {
+      toastError("We couldn’t save this learner", cause);
+      throw cause;
+    } finally { setBusy(false); }
+    try { setLearners(await fetchLearners()); } catch (cause) { toastError("We couldn’t refresh your learners", cause); }
   }
-  if (!learners) return message ? <EmptyState title="Learners unavailable" description={message} /> : <p>Loading learners…</p>;
-  return <LearnerDirectory learners={learners} onSave={save} busy={busy} message={message} renderProfileLink={(href, children) => <Link href={href}>{children}</Link>} />;
+  if (!learners) return loadFailed ? <EmptyState title="Learners unavailable" description="Could not load learners. Refresh to try again." /> : <p>Loading learners…</p>;
+  return <LearnerDirectory learners={learners} onSave={save} busy={busy} renderProfileLink={(href, children) => <Link href={href}>{children}</Link>} />;
 }

@@ -42,22 +42,20 @@ type EditableSchedulingSettings = Pick<SchedulingSettings, "defaultSessionMinute
 
 export function SchedulingSettingsForm({ settings, onSave }: {
   settings: SchedulingSettings;
-  onSave: (input: EditableSchedulingSettings) => Promise<string | null>;
+  onSave: (input: EditableSchedulingSettings) => Promise<void>;
 }) {
-  const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     setSaving(true);
-    const error = await onSave({
+    await onSave({
       defaultSessionMinutes: Number(data.get("duration")),
       bufferWarningMinutes: Number(data.get("buffer")),
       weeklyBookingAllowance: String(data.get("allowance")) as SchedulingSettings["weeklyBookingAllowance"],
       minimumBookingNoticeHours: Number(data.get("notice")) as SchedulingSettings["minimumBookingNoticeHours"],
       contactPhone: String(data.get("phone") ?? "").trim() || null,
-    }).catch(() => "Could not save settings. Please try again.");
-    setMessage(error ?? "Scheduling settings saved. Existing lesson times stay as they are; booking limits and notice apply to future online bookings.");
+    }).catch(() => {});
     setSaving(false);
   }
   return <form data-dt="booking-panel" onSubmit={submit}>
@@ -77,7 +75,7 @@ export function SchedulingSettingsForm({ settings, onSave }: {
       </SelectField>
       <Field id="setting-phone" name="phone" type="tel" label="Contact phone (optional)" defaultValue={settings.contactPhone ?? ""} hint="Shown to a learner who needs to change a lesson within 48 hours." />
     </div>
-    <footer><Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save settings"}</Button>{message && <p data-dt="form-feedback" role="status">{message}</p>}</footer>
+    <footer><Button type="submit" disabled={saving}>{saving ? "Saving…" : "Save settings"}</Button></footer>
   </form>;
 }
 
