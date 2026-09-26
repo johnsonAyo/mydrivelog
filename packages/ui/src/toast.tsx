@@ -51,7 +51,7 @@ function ToastList() {
   const { toasts } = Toast.useToastManager();
   return toasts.map((item) => {
     const Icon = toastVariants[item.type as ToastVariant]?.icon ?? Info;
-    return <Toast.Root key={item.id} toast={item} data-dt="toast">
+    return <Toast.Root key={item.id} toast={item} swipeDirection={["up", "right"]} data-dt="toast">
       <Icon aria-hidden="true" data-dt="toast-mark" size={18} />
       <Toast.Content data-dt="toast-content">
         <Toast.Title render={<p />} data-dt="toast-title" />
