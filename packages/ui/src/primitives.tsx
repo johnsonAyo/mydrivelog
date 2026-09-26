@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
+import { LoaderCircle } from "lucide-react";
 
 export type Space = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 export type Tone = "neutral" | "brand" | "success" | "warning" | "danger" | "info";
@@ -66,10 +67,36 @@ export function Button({
   tone = "brand",
   variant = "solid",
   size = "3",
+  loading = false,
+  disabled,
   children,
   ...props
-}: ComponentProps<"button"> & { tone?: Tone; variant?: Variant; size?: Size }) {
-  return <button data-dt="button" data-tone={tone} data-variant={variant} data-size={size} {...props}>{children}</button>;
+}: ComponentProps<"button"> & { tone?: Tone; variant?: Variant; size?: Size; loading?: boolean }) {
+  return <button data-dt="button" data-tone={tone} data-variant={variant} data-size={size} disabled={disabled || loading} aria-busy={loading || undefined} {...props}>
+    {loading && <LoaderCircle data-dt="spinner" aria-hidden="true" />}
+    {children}
+  </button>;
+}
+
+export function Spinner({ label = "Loading", size = "2" }: { label?: string; size?: "1" | "2" | "3" }) {
+  return <span data-dt="spinner-status" role="status">
+    <LoaderCircle data-dt="spinner" data-size={size} aria-hidden="true" />
+    <span data-dt="visually-hidden">{label}</span>
+  </span>;
+}
+
+export type SkeletonShape = "heading" | "text" | "control" | "button" | "block";
+export type SkeletonWidth = "quarter" | "third" | "half" | "two-thirds" | "full";
+
+export function Skeleton({ shape = "text", width = "full" }: { shape?: SkeletonShape; width?: SkeletonWidth }) {
+  return <span data-dt="skeleton" data-shape={shape} data-width={width} aria-hidden="true" />;
+}
+
+export function LoadingRegion({ label, children }: { label: string; children: ReactNode }) {
+  return <div data-dt="loading-region" role="status" aria-busy="true">
+    <span data-dt="visually-hidden">{label}</span>
+    {children}
+  </div>;
 }
 
 export function Badge({

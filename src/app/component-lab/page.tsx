@@ -13,6 +13,10 @@ import {
   EmailAccessForm,
   Inline,
   LessonContextCard,
+  LearnerDirectorySkeleton,
+  ProductPageSkeleton,
+  Skeleton,
+  Spinner,
   ProductShell,
   SchedulingNotice,
   Showcase,
@@ -65,6 +69,26 @@ export default function ComponentLab() {
         <Surface>
           <ToastPreview />
         </Surface>
+      </ShowcaseSection>
+
+      <ShowcaseSection id="loading" title="Loading states" description="A spinner marks an action in flight and keeps its label. Skeletons take the shape of the content they stand in for, so pages do not jump when data arrives.">
+        <Surface>
+          <Stack gap="4">
+            <Inline>
+              <Spinner />
+              <Button type="button" loading>Save learner</Button>
+              <Button type="button" variant="surface" loading>Review recap</Button>
+              <Button type="button" variant="outline" size="2" loading>Sign out</Button>
+            </Inline>
+            <Stack gap="2">
+              <Skeleton shape="heading" width="third" />
+              <Skeleton width="two-thirds" />
+              <Skeleton shape="control" />
+            </Stack>
+          </Stack>
+        </Surface>
+        <LearnerDirectorySkeleton />
+        <ProductPageSkeleton />
       </ShowcaseSection>
 
       <ShowcaseSection id="access" title="Access and pilot" description="Isolated signup and entitlement states. Forms are disabled in this lab; the live flow lives at Get started.">

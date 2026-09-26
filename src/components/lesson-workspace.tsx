@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { LessonDetail, toast, type LessonFields, type LessonPreview, type LessonSkill } from "@drivetrack/ui";
+import { LessonDetail, LessonDetailSkeleton, toast, type LessonFields, type LessonPreview, type LessonSkill } from "@drivetrack/ui";
 import { requestJson, toastError } from "./api-request";
 import { LessonWorkspaceStore } from "./lesson-workspace-store";
 
@@ -71,7 +71,7 @@ export function LessonWorkspace({ bookingId, writable }: { bookingId: string; wr
     announceDelivery(kind, data.status ?? undefined);
   }); }
 
-  if (!lesson || !fields) return <p role={loadError ? "alert" : "status"}>{loadError ?? status}</p>;
+  if (!lesson || !fields) return loadError ? <p role="alert">{loadError}</p> : <LessonDetailSkeleton />;
   return <LessonDetail lesson={lesson} fields={fields} saveStatus={status} error={error} busy={busy} writable={writable}
     preview={preview} correction={correction} onChange={change} onAddSkill={() => update({ ...fields, skills: [...fields.skills, { skill: "", outcome: "introduced" }] })}
     onChangeSkill={changeSkill} onRemoveSkill={(index) => update({ ...fields, skills: fields.skills.filter((_, i) => i !== index) })}

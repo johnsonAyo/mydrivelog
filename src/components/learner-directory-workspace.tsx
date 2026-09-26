@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { EmptyState, LearnerDirectory, toast, type Learner } from "@drivetrack/ui";
+import { EmptyState, LearnerDirectory, LearnerDirectorySkeleton, toast, type Learner } from "@drivetrack/ui";
 import { requestJson, toastError } from "./api-request";
 
 async function fetchLearners() {
@@ -30,6 +30,6 @@ export function LearnerDirectoryWorkspace() {
     } finally { setBusy(false); }
     try { setLearners(await fetchLearners()); } catch (cause) { toastError("We couldn’t refresh your learners", cause); }
   }
-  if (!learners) return loadFailed ? <EmptyState title="Learners unavailable" description="Could not load learners. Refresh to try again." /> : <p>Loading learners…</p>;
+  if (!learners) return loadFailed ? <EmptyState title="Learners unavailable" description="Could not load learners. Refresh to try again." /> : <LearnerDirectorySkeleton />;
   return <LearnerDirectory learners={learners} onSave={save} busy={busy} renderProfileLink={(href, children) => <Link href={href}>{children}</Link>} />;
 }

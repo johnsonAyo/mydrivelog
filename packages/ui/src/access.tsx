@@ -35,7 +35,7 @@ export function EmailAccessForm({ mode = "start", disabled = false }: { mode?: "
       ) : (
         <form onSubmit={submit} data-dt="access-form">
           <Field id="access-email" name="email" label="Work email" type="email" autoComplete="email" required placeholder="you@example.com" disabled={disabled} />
-          <Button type="submit" disabled={disabled || state === "sending"}>{state === "sending" ? "Sending code…" : "Continue with email"}</Button>
+          <Button type="submit" disabled={disabled} loading={state === "sending"}>Continue with email</Button>
           {state === "error" && <Text variant="caption">We couldn’t send the code right now. Please try again.</Text>}
         </form>
       )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { EmptyState, PublicBookingPicker, toast, type PublicBooking } from "@drivetrack/ui";
+import { EmptyState, PublicBookingPicker, PublicTimesSkeleton, toast, type PublicBooking } from "@drivetrack/ui";
 import { ApiError, errorMessage, requestJson, toastError } from "./api-request";
 
 export function PublicBookingWorkspace({ token }: { token: string }) {
@@ -31,6 +31,6 @@ export function PublicBookingWorkspace({ token }: { token: string }) {
     }
   }
   if (error) return <div data-dt="public-booking-wrap"><EmptyState title="Booking unavailable" description={error} /></div>;
-  if (!booking) return <div data-dt="public-booking-wrap"><p>Loading available times…</p></div>;
+  if (!booking) return <PublicTimesSkeleton />;
   return <div data-dt="public-booking-wrap"><PublicBookingPicker booking={booking} onBook={book} /></div>;
 }
