@@ -1,34 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { EmptyState, PublicBookingPicker, type PublicBooking } from "@drivetrack/ui";
+import { EmptyState, PublicBookingPicker, toast, type PublicBooking } from "@drivetrack/ui";
+import { ApiError, errorMessage, requestJson, toastError } from "./api-request";
 
 export function PublicBookingWorkspace({ token }: { token: string }) {
   const [booking, setBooking] = useState<PublicBooking | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const url = `/api/public/book/${token}`;
   useEffect(() => {
     let active = true;
-    fetch(`/api/public/book/${token}`, { cache: "no-store" }).then(async (response) => {
-      if (!response.ok) throw new Error("This booking link is unavailable or has expired.");
-      const json: { data: PublicBooking } = await response.json();
-      if (active) setBooking(json.data);
-    }).catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : "Could not open this booking link."); });
+    requestJson<{ data: PublicBooking }>(`/api/public/book/${token}`)
+      .then(({ data }) => { if (active) setBooking(data); })
+      .catch(() => { if (active) setError("This booking link is unavailable or has expired."); });
     return () => { active = false; };
   }, [token]);
+  async function refresh() {
+    try { setBooking((await requestJson<{ data: PublicBooking }>(url)).data); } catch { /* The confirmed or failed state is already on screen. */ }
+  }
   async function book(startsAt: string) {
-    const response = await fetch(`/api/public/book/${token}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ startsAt }) });
-    if (!response.ok) {
-      const body: { detail?: string } = await response.json().catch(() => ({}));
-      if (response.status === 409) {
-        const refresh = await fetch(`/api/public/book/${token}`, { cache: "no-store" });
-        if (refresh.ok) { const json: { data: PublicBooking } = await refresh.json(); setBooking(json.data); }
-      }
-      return { error: body.detail ?? "That time is no longer available. Choose another." };
+    try {
+      const result = await requestJson<{ data: { confirmationEmailStatus: string } }>(url, { method: "POST", body: { startsAt } });
+      toast.success("Lesson booked");
+      await refresh();
+      return { error: null, confirmationEmailStatus: result.data.confirmationEmailStatus };
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 409) await refresh();
+      toastError("We couldn’t book this lesson", cause);
+      return { error: errorMessage(cause) };
     }
-    const result: { data: { confirmationEmailStatus: string } } = await response.json();
-    const refresh = await fetch(`/api/public/book/${token}`, { cache: "no-store" });
-    if (refresh.ok) { const json: { data: PublicBooking } = await refresh.json(); setBooking(json.data); }
-    return { error: null, confirmationEmailStatus: result.data.confirmationEmailStatus };
   }
   if (error) return <div data-dt="public-booking-wrap"><EmptyState title="Booking unavailable" description={error} /></div>;
   if (!booking) return <div data-dt="public-booking-wrap"><p>Loading available times…</p></div>;

@@ -3,24 +3,26 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { GoogleAuthProvider, getRedirectResult, signInWithCustomToken, signInWithPopup, signInWithRedirect } from "firebase/auth";
-import { Badge, Button, Field, Heading, Text } from "@drivetrack/ui";
+import { Badge, Button, Field, Heading, Text, toast } from "@drivetrack/ui";
 import { firebaseClientAuth } from "@/infrastructure/auth/firebase-client";
 import { GoogleIcon } from "@/components/google-icon";
+import { requestJson, toastError } from "./api-request";
+import { firebaseAuthCode, firebaseAuthFeedback, type AuthFeedback } from "./firebase-auth-feedback";
 
 type Step = "email" | "code";
 
+const codeSignInFallback: AuthFeedback = { variant: "error", title: "We couldn’t sign you in", description: "Please request a new code and try again." };
+
 async function openWorkspace(idToken: string): Promise<string> {
-  const response = await fetch("/api/v1/auth/session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken }),
-  });
-  if (!response.ok) {
-    const data = (await response.json().catch(() => null)) as { detail?: string; title?: string } | null;
-    throw new Error(data?.detail || data?.title || "We couldn’t open your workspace. Please try again.");
-  }
-  const data = (await response.json()) as { next: string };
-  return data.next;
+  const { next } = await requestJson<{ next: string }>("/api/v1/auth/session", { method: "POST", body: { idToken } });
+  return next;
+}
+
+function reportSignInFailure(title: string, cause: unknown, fallback?: AuthFeedback) {
+  const code = firebaseAuthCode(cause);
+  if (!code) return toastError(title, cause);
+  const feedback = firebaseAuthFeedback(code, fallback);
+  if (feedback) toast.show(feedback.variant, { title: feedback.title, description: feedback.description });
 }
 
 export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
@@ -29,7 +31,6 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (window.sessionStorage.getItem("mydrivelog.googleRedirect") !== "pending") return;
@@ -44,26 +45,20 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
         router.replace(next);
         router.refresh();
       })
-      .catch((cause) => setError(cause instanceof Error ? cause.message : "Google sign-in didn’t finish. Please try again."))
+      .catch((cause) => reportSignInFailure("We couldn’t open your workspace", cause))
       .finally(() => setBusy(false));
   }, [router]);
 
   async function sendCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
-    setError("");
     try {
       const address = email.trim().toLowerCase();
-      const response = await fetch("/api/v1/auth/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: address }),
-      });
-      if (!response.ok) throw new Error(response.status === 429 ? "Please wait a moment before requesting another code." : "We couldn’t send a code right now. Please try again.");
+      await requestJson("/api/v1/auth/request", { method: "POST", body: { email: address } });
       setEmail(address);
       setStep("code");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not send a code.");
+      toastError("We couldn’t send a sign-in code", cause);
     } finally {
       setBusy(false);
     }
@@ -72,21 +67,14 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
   async function verifyCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
-    setError("");
     try {
-      const response = await fetch("/api/v1/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
-      });
-      if (!response.ok) throw new Error(response.status === 400 ? "That code is invalid or expired. Check your email or request a new one." : "We couldn’t verify your code right now.");
-      const { customToken } = (await response.json()) as { customToken: string };
+      const { customToken } = await requestJson<{ customToken: string }>("/api/v1/auth/verify", { method: "POST", body: { email, code } });
       const credential = await signInWithCustomToken(firebaseClientAuth(), customToken);
       const next = await openWorkspace(await credential.user.getIdToken());
       router.replace(next);
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not sign in.");
+      reportSignInFailure("We couldn’t sign you in", cause, codeSignInFallback);
     } finally {
       setBusy(false);
     }
@@ -94,7 +82,6 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
 
   async function googleSignIn() {
     setBusy(true);
-    setError("");
     try {
       const auth = firebaseClientAuth();
       const provider = new GoogleAuthProvider();
@@ -104,8 +91,8 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
       router.replace(next);
       router.refresh();
     } catch (cause) {
-      const code = (cause as { code?: string }).code;
-      if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+      const failure = firebaseAuthCode(cause);
+      if (failure === "auth/popup-blocked" || failure === "auth/operation-not-supported-in-this-environment") {
         try {
           window.sessionStorage.setItem("mydrivelog.googleRedirect", "pending");
           const auth = firebaseClientAuth();
@@ -117,15 +104,7 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
           window.sessionStorage.removeItem("mydrivelog.googleRedirect");
         }
       }
-      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-        setError("Google sign-in was closed.");
-      } else if (code === "auth/unauthorized-domain") {
-        setError("This domain is not authorised for Google sign-in in Firebase.");
-      } else if (cause instanceof Error && cause.message) {
-        setError(cause.message);
-      } else {
-        setError("Google sign-in didn’t finish. Please try again.");
-      }
+      reportSignInFailure("We couldn’t open your workspace", cause);
       setBusy(false);
     }
   }
@@ -141,9 +120,8 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
       <div data-dt="access-feedback" role="status"><strong>Check your inbox.</strong><Text variant="muted">Enter the six-digit code sent to {email}. It expires in 10 minutes.</Text></div>
       <Field id="access-code" name="code" label="Sign-in code" type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
       <Button type="submit" disabled={busy || code.length !== 6}>{busy ? "Checking…" : "Open workspace"}</Button>
-      <Button type="button" variant="ghost" disabled={busy} onClick={() => { setStep("email"); setCode(""); setError(""); }}>Use a different email</Button>
+      <Button type="button" variant="ghost" disabled={busy} onClick={() => { setStep("email"); setCode(""); }}>Use a different email</Button>
     </form>}
     {step === "email" && <div className="grid gap-3 border-t border-border pt-4"><Text variant="caption">Or continue with</Text><Button type="button" variant="outline" disabled={busy} onClick={googleSignIn}><GoogleIcon /> Google</Button></div>}
-    {error && <Text variant="caption"><span role="alert">{error}</span></Text>}
   </section>;
 }

@@ -27,6 +27,7 @@ import {
 } from "@drivetrack/ui";
 import { instructorNavigation } from "@/components/instructor-navigation";
 import { CollectionEditorPreview } from "@/components/preview/collection-editor-preview";
+import { ToastPreview } from "@/components/preview/toast-preview";
 import { previewCalendarDays, previewCalendarSlots, previewLessons } from "@/components/preview/preview-data";
 
 export const metadata: Metadata = {
@@ -57,6 +58,12 @@ export default function ComponentLab() {
             </Inline>
             <Text variant="caption">Buttons are disabled here because this gallery does not persist changes.</Text>
           </Stack>
+        </Surface>
+      </ShowcaseSection>
+
+      <ShowcaseSection id="feedback" title="Feedback toasts" description="Short-lived confirmation and failure messages. Errors are announced assertively and stay longer; every toast can be dismissed, and F6 moves focus to the notifications.">
+        <Surface>
+          <ToastPreview />
         </Surface>
       </ShowcaseSection>
 

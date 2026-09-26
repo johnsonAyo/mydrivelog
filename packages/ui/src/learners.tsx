@@ -5,11 +5,10 @@ import { Button, EmptyState, Field, Heading, Text } from "./primitives";
 
 export type Learner = { id: string | null; profileId: string; name: string; email: string; sourceEmail: string; upcomingLessons: number };
 
-export function LearnerDirectory({ learners, onSave, busy, message, renderProfileLink }: {
+export function LearnerDirectory({ learners, onSave, busy, renderProfileLink }: {
   learners: readonly Learner[];
   onSave: (input: { sourceEmail: string; name: string; email: string }) => Promise<void>;
   busy: boolean;
-  message: string | null;
   renderProfileLink?: (href: string, children: ReactNode) => ReactNode;
 }) {
   const [query, setQuery] = useState("");
@@ -31,7 +30,6 @@ export function LearnerDirectory({ learners, onSave, busy, message, renderProfil
       <Field id="learner-email" name="email" label="Email" type="email" defaultValue={editing?.email ?? ""} required />
       <div><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save learner"}</Button><Button type="button" variant="surface" onClick={() => { setAdding(false); setEditing(null); }}>Cancel</Button></div>
     </form>}
-    {message && <p data-dt="collection-feedback" role="status">{message}</p>}
     {filtered.length ? <div data-dt="learner-list">{filtered.map((learner) => <article key={learner.sourceEmail} data-dt="learner-row"><div><strong>{renderProfileLink ? renderProfileLink(`/learners/${learner.profileId}`, learner.name) : <a href={`/learners/${learner.profileId}`}>{learner.name}</a>}</strong><Text variant="muted">{learner.email}</Text></div><span>{learner.upcomingLessons} upcoming {learner.upcomingLessons === 1 ? "lesson" : "lessons"}</span><Button type="button" variant="surface" onClick={() => { setAdding(false); setEditing(learner); }}>Edit</Button></article>)}</div> : <EmptyState title={query ? "No matching learners" : "No learners yet"} description={query ? "Try another name or email." : "Add a learner or invite someone from a shared week."} />}
   </section>;
 }

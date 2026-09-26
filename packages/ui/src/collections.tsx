@@ -4,6 +4,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Badge, Button, EmptyState, Field, Heading, SelectField, Text } from "./primitives";
 import { LessonTimePicker, lessonTimeIssue } from "./lesson-time-picker";
 import { useCurrentTime } from "./clock-store";
+import { toast } from "./toast";
 
 export type CollectionSummary = { id: string; name: string; weekStart: string; status: "draft" | "live"; updatedAt: string; slotCount: number; openCount: number; bookingCount: number };
 export type CollectionDetail = { id: string; name: string; weekStart: string; status: "draft" | "live"; slots: CollectionSlot[]; invitations: CollectionInvitation[]; bookings: CollectionBooking[]; generalToken: string | null };
@@ -198,8 +199,13 @@ export function CollectionSharing({ collection, contacts, onInvite, onGeneralLin
     if (inviteName.trim() && inviteEmail.trim()) await onInvite(inviteName.trim(), inviteEmail.trim());
   }
   async function copy(url: string) {
-    await navigator.clipboard.writeText(new URL(url, window.location.origin).toString());
-    setCopied(true);
+    const absolute = new URL(url, window.location.origin).toString();
+    try {
+      await navigator.clipboard.writeText(absolute);
+      setCopied(true);
+    } catch {
+      toast.error({ title: "We couldn’t copy the link", description: `Select and copy it yourself: ${absolute}` });
+    }
   }
   return <aside data-dt="collection-share">
       {renderPreviewLink ? renderPreviewLink(previewHref, <>Preview the booking page <span aria-hidden="true">↗</span></>) : <a data-dt="collection-preview-link" href={previewHref}>Preview the booking page <span aria-hidden="true">↗</span></a>}

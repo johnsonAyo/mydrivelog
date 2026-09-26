@@ -1,29 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { EmptyState, SchedulingSettingsForm, type SchedulingSettings } from "@drivetrack/ui";
+import { EmptyState, SchedulingSettingsForm, toast, type SchedulingSettings } from "@drivetrack/ui";
+import { requestJson, toastError } from "./api-request";
+
+type EditableSchedulingSettings = Pick<SchedulingSettings, "defaultSessionMinutes" | "bufferWarningMinutes" | "weeklyBookingAllowance" | "minimumBookingNoticeHours" | "contactPhone">;
 
 export function SchedulingSettingsWorkspace() {
   const [settings, setSettings] = useState<SchedulingSettings | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
     let active = true;
-    fetch("/api/v1/settings/scheduling", { cache: "no-store" }).then(async (response) => {
-      if (!response.ok) throw new Error("Settings unavailable");
-      const json: { data: SchedulingSettings } = await response.json();
-      if (active) setSettings(json.data);
-    }).catch(() => { if (active) setError(true); });
+    requestJson<{ data: SchedulingSettings }>("/api/v1/settings/scheduling")
+      .then(({ data }) => { if (active) setSettings(data); })
+      .catch(() => { if (active) setError(true); });
     return () => { active = false; };
   }, []);
-  async function save(input: Pick<SchedulingSettings, "defaultSessionMinutes" | "bufferWarningMinutes" | "weeklyBookingAllowance" | "minimumBookingNoticeHours" | "contactPhone">) {
-    const response = await fetch("/api/v1/settings/scheduling", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
-    if (!response.ok) {
-      const body: { detail?: string } = await response.json().catch(() => ({}));
-      return body.detail ?? "Could not save settings";
+  async function save(input: EditableSchedulingSettings) {
+    try {
+      const { data } = await requestJson<{ data: SchedulingSettings }>("/api/v1/settings/scheduling", { method: "PATCH", body: input });
+      setSettings(data);
+      toast.success({ title: "Scheduling settings saved", description: "Existing lesson times stay as they are. Booking limits and notice apply to future online bookings." });
+    } catch (cause) {
+      toastError("We couldn’t save your settings", cause);
     }
-    const json: { data: SchedulingSettings } = await response.json();
-    setSettings(json.data);
-    return null;
   }
   if (error) return <EmptyState title="Settings unavailable" description="Refresh this page and try again." />;
   if (!settings) return <p>Loading scheduling settings…</p>;

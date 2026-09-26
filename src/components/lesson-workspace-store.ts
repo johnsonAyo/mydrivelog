@@ -1,4 +1,5 @@
-import type { LessonFields, LessonView } from "@drivetrack/ui";
+import { toast, type LessonFields, type LessonView } from "@drivetrack/ui";
+import { errorMessage, requestJson } from "./api-request";
 
 type LessonSnapshot = {
   lesson: LessonView | null;
@@ -8,15 +9,7 @@ type LessonSnapshot = {
   loadError: string | null;
 };
 
-async function request<T>(url: string, method: "GET" | "PATCH" = "GET", body?: unknown): Promise<T> {
-  const response = await fetch(url, { method, cache: "no-store", headers: body === undefined ? undefined : { "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body) });
-  if (!response.ok) {
-    const problem: { detail?: string } = await response.json().catch(() => ({}));
-    throw new Error(problem.detail ?? "The lesson could not be updated. Please try again.");
-  }
-  return response.json() as Promise<T>;
-}
+const SAVE_FAILURE_TOAST = "lesson-autosave-failed";
 
 function draftFields(lesson: LessonView): LessonFields {
   return { privateNotes: lesson.draft.privateNotes, whatWeWorkedOn: lesson.draft.whatWeWorkedOn,
@@ -96,7 +89,7 @@ export class LessonWorkspaceStore {
   }
 
   async reload(replaceFields: boolean) {
-    const { data } = await request<{ data: LessonView }>(this.base);
+    const { data } = await requestJson<{ data: LessonView }>(this.base);
     this.revision = data.draft.revision;
     if (replaceFields) {
       const fields = draftFields(data);
@@ -115,15 +108,17 @@ export class LessonWorkspaceStore {
           const current = this.snapshot.fields;
           this.patch({ status: "Saving…", error: null });
           const persistedFields = { ...current, skills: current.skills.filter((item) => item.skill.trim()) };
-          const { data } = await request<{ data: LessonView }>(this.base, "PATCH", { expectedRevision: this.revision, ...persistedFields });
+          const { data } = await requestJson<{ data: LessonView }>(this.base, { method: "PATCH", body: { expectedRevision: this.revision, ...persistedFields } });
           this.revision = data.draft.revision;
           this.savedFields = JSON.stringify(current);
           this.patch({ lesson: data });
         }
         this.patch({ status: "Saved" });
+        toast.dismiss(SAVE_FAILURE_TOAST);
         return true;
       } catch (cause) {
-        this.patch({ status: "Save failed", error: cause instanceof Error ? cause.message : "Could not save your changes." });
+        this.patch({ status: "Save failed", error: errorMessage(cause) });
+        toast.error({ id: SAVE_FAILURE_TOAST, title: "Your lesson notes aren’t saved", description: errorMessage(cause), action: { label: "Retry save", onClick: () => { void this.saveNow(); } } });
         return false;
       }
     })();

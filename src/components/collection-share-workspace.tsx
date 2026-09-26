@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CollectionSharing, type CollectionDetail, type ContactOption } from "@drivetrack/ui";
-import { apiError } from "./api-error";
+import { CollectionSharing, toast, type CollectionDetail, type ContactOption } from "@drivetrack/ui";
+import { errorMessage, requestJson, toastError } from "./api-request";
 
 export function CollectionShareWorkspace({ initialCollection, contacts, writable }: {
   initialCollection: CollectionDetail; contacts: ContactOption[]; writable: boolean;
@@ -21,23 +21,21 @@ export function CollectionShareWorkspace({ initialCollection, contacts, writable
     setError(null);
     setNotice(null);
     try {
-      const response = await fetch(`${base}/share`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (!response.ok) throw new Error(await apiError(response, "Could not share this list."));
-      const result: { data: { url: string; emailStatus?: string } } = await response.json();
+      const result = await requestJson<{ data: { url: string; emailStatus?: string } }>(`${base}/share`, { method: "POST", body });
       if (body.kind === "invite") {
+        const sent = result.data.emailStatus === "sent";
         setLastInvitation({ url: result.data.url, emailStatus: result.data.emailStatus ?? "pending" });
-        setNotice(result.data.emailStatus === "sent" ? "Invitation sent." : "Invitation created. Please check email delivery and send the link manually if needed.");
+        setNotice(sent ? "Invitation sent." : "Invitation created. Please check email delivery and send the link manually if needed.");
+        if (sent) toast.success(`Invitation sent to ${body.name}`);
+        else toast.error({ title: "Invitation created, but the email didn’t send", description: "Copy the personal link below and send it yourself." });
       } else {
         setGeneralUrl(result.data.url);
         setNotice("General link ready to copy.");
       }
-      const refreshed = await fetch(base, { cache: "no-store" });
-      if (refreshed.ok) {
-        const json: { data: CollectionDetail } = await refreshed.json();
-        setCollection(json.data);
-      }
+      await requestJson<{ data: CollectionDetail }>(base).then(({ data }) => setCollection(data), () => {});
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not share this list.");
+      setError(errorMessage(cause));
+      toastError(body.kind === "invite" ? "We couldn’t send this invitation" : "We couldn’t create a general link", cause);
     } finally {
       setBusy(false);
     }

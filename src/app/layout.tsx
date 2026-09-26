@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "@fontsource-variable/bricolage-grotesque";
+import { Toaster } from "@drivetrack/ui";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>{children}<Toaster /></body>
     </html>
   );
 }
