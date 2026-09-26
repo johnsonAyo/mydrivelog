@@ -1,5 +1,7 @@
 export { Container, Surface, Stack, Inline, Heading, Text, Button, Badge, Field, SelectField, TextareaField, EmptyState } from "./primitives";
 export type { Space, Tone, Variant, Size } from "./primitives";
+export { Toaster, toast } from "./toast";
+export type { ToastMessage, ToastVariant } from "./toast";
 export { ProductPage, ProductShell } from "./product-shell";
 export { CollectionChooser, CollectionEditor, CollectionSharing, PublicCollectionPicker } from "./collections";
 export type { CollectionSummary, CollectionDetail, CollectionSlot, CollectionFeedbackArea, ContactOption, SlotInput, PublicCollection } from "./collections";
