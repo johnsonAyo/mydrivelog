@@ -35,6 +35,8 @@ export const instructorIdentities = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email").notNull(),
     firebaseUid: text("firebase_uid"),
+    // The pupil-facing workspace name chosen at onboarding (e.g. "Sarah's Driving School").
+    // Null until onboarding is complete. Older accounts hold the first name they entered here.
     fullName: text("full_name"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

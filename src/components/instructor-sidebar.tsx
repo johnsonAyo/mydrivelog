@@ -13,7 +13,7 @@ function sectionForPath(pathname: string): InstructorSection {
   return "today";
 }
 
-export function InstructorSidebar({ instructorName }: { instructorName: string }) {
+export function InstructorSidebar({ greetingName }: { greetingName: string }) {
   const pathname = usePathname();
   const navigation = instructorNavigation(sectionForPath(pathname));
   return <aside data-dt="product-sidebar">
@@ -23,7 +23,7 @@ export function InstructorSidebar({ instructorName }: { instructorName: string }
         <span aria-hidden="true">{item.icon}</span>{item.label}
       </Link>)}
     </nav>
-    <div data-dt="product-identity"><span>{instructorName}</span><InstructorSignOut /></div>
+    <div data-dt="product-identity"><span>{greetingName}</span><InstructorSignOut /></div>
     <details data-dt="product-mobile-menu" key={pathname}>
       <summary><Menu size={20} aria-hidden="true" /><span>Menu</span></summary>
       <div data-dt="product-mobile-menu-panel">
@@ -32,7 +32,7 @@ export function InstructorSidebar({ instructorName }: { instructorName: string }
             <span aria-hidden="true">{item.icon}</span>{item.label}
           </Link>)}
         </nav>
-        <div data-dt="product-mobile-account"><span>{instructorName}</span><InstructorSignOut /></div>
+        <div data-dt="product-mobile-account"><span>{greetingName}</span><InstructorSignOut /></div>
       </div>
     </details>
   </aside>;

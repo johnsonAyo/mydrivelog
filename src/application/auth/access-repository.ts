@@ -26,7 +26,7 @@ export interface AuthRepository {
   invalidateCode(id: string): Promise<void>;
   consumeCode(input: ConsumeCode): Promise<"valid" | "invalid">;
   establishSession(input: EstablishSession): Promise<{ needsOnboarding: boolean }>;
-  completeOnboarding(input: { identityId: string; fullName: string }): Promise<boolean>;
+  completeOnboarding(input: { identityId: string; workspaceName: string }): Promise<boolean>;
   revokeSession(sessionTokenHash: string): Promise<void>;
 }
 

@@ -45,8 +45,9 @@ export async function getWindowDetail(workspaceId: string, id: string) {
   const { client } = getDatabase();
   const [window] = await client<WindowRow[]>`
     select a.id, a.workspace_id, a.starts_at, a.ends_at, a.session_minutes, a.buffer_minutes, a.status,
-      w.name as instructor_name
+      coalesce(nullif(i.full_name, ''), 'Your instructor') as instructor_name
     from availability_slots a join workspaces w on w.id = a.workspace_id
+      join instructor_identities i on i.id = w.owner_identity_id
     where a.id = ${id} and a.workspace_id = ${workspaceId}
   `;
   if (!window) return null;
@@ -123,11 +124,12 @@ export async function getPublicBooking(token: string): Promise<PublicBookingView
     recipient_id: string; name: string; instructor_name: string; timezone: string; window_id: string;
     starts_at: string; ends_at: string; session_minutes: number; buffer_minutes: number;
   }[]>`
-    select rr.id as recipient_id, rr.name, w.name as instructor_name, w.timezone,
+    select rr.id as recipient_id, rr.name, coalesce(nullif(i.full_name, ''), 'Your instructor') as instructor_name, w.timezone,
       a.id as window_id, a.starts_at, a.ends_at, a.session_minutes, a.buffer_minutes
     from release_recipients rr join availability_releases ar on ar.id = rr.release_id
       join availability_slots a on a.id = ar.availability_id
       join workspaces w on w.id = ar.workspace_id
+      join instructor_identities i on i.id = w.owner_identity_id
     where rr.token_hash = ${hash(token)} and ar.status = 'published' and ar.expires_at > now()
       and a.status = 'open' and w.status = 'active'
   `;
@@ -158,12 +160,13 @@ export async function claimBooking(token: string, start: Date): Promise<ClaimRes
       window_id: string; starts_at: string; ends_at: string; session_minutes: number; buffer_minutes: number;
       weekly_booking_allowance: string; timezone: string; trial_ends_at: string | null; paid_through: string | null;
     }[]>`
-      select rr.id as recipient_id, rr.email, rr.name, w.name as instructor_name, w.id as workspace_id,
+      select rr.id as recipient_id, rr.email, rr.name, coalesce(nullif(i.full_name, ''), 'Your instructor') as instructor_name, w.id as workspace_id,
         a.id as window_id, a.starts_at, a.ends_at, a.session_minutes, a.buffer_minutes,
         w.weekly_booking_allowance, w.timezone, w.trial_ends_at, w.paid_through
       from release_recipients rr join availability_releases ar on ar.id = rr.release_id
         join availability_slots a on a.id = ar.availability_id
         join workspaces w on w.id = ar.workspace_id
+        join instructor_identities i on i.id = w.owner_identity_id
       where rr.token_hash = ${hash(token)} and ar.status = 'published' and ar.expires_at > now()
         and a.status = 'open' and w.status = 'active'
       for update of a

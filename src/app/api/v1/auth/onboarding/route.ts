@@ -6,14 +6,8 @@ import { postgresSessionResolver } from "@/infrastructure/auth/postgres-session-
 import { queueActivity } from "@/infrastructure/monitoring/telegram";
 import { problem } from "@/presentation/http/problem";
 
-const inputSchema = z
-  .object({
-    fullName: z.string().trim().min(1).max(100).optional(),
-    firstName: z.string().trim().min(1).max(100).optional(),
-  })
-  .refine((data) => Boolean(data.fullName || data.firstName), {
-    message: "Enter your first name",
-  });
+// The workspace name is shown to pupils exactly as typed, so it is kept whole (only trimmed).
+const inputSchema = z.object({ workspaceName: z.string().trim().min(1).max(100) });
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +17,10 @@ export async function POST(request: NextRequest) {
   const session = await postgresSessionResolver.resolve(token ?? null);
   if (!session) return problem(401, "unauthenticated", "Sign in to continue");
   const parsed = inputSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return problem(400, "invalid_name", "Enter your first name");
-  const rawName = (parsed.data.firstName ?? parsed.data.fullName)!.trim();
-  const firstName = rawName.split(/\s+/)[0];
-  const created = await postgresAuthRepository.completeOnboarding({ identityId: session.identityId, fullName: firstName });
+  if (!parsed.success) return problem(400, "invalid_workspace_name", "Enter a workspace name of up to 100 characters");
+  const { workspaceName } = parsed.data;
+  const created = await postgresAuthRepository.completeOnboarding({ identityId: session.identityId, workspaceName });
   if (created) queueActivity({ action: "instructor_signed_up", reference: session.workspaceId,
-    actor: { ...session, instructorName: firstName } });
+    actor: { ...session, instructorName: workspaceName } });
   return NextResponse.json({ next: "/calendar" }, { headers: { "Cache-Control": "private, no-store" } });
 }

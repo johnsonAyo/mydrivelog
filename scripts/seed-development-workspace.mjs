@@ -13,7 +13,7 @@ try {
   await sql.begin(async (transaction) => {
     await transaction`
       insert into instructor_identities (email, full_name)
-      values ('development-instructor@drivetrack.local', 'Alex')
+      values ('development-instructor@drivetrack.local', 'Alex''s Driving School')
       on conflict do nothing
     `;
     const [identity] = await transaction`
@@ -22,7 +22,7 @@ try {
     `;
     await transaction`
       update instructor_identities
-      set full_name = 'Alex'
+      set full_name = 'Alex''s Driving School'
       where id = ${identity.id} and (full_name is null or full_name = '')
     `;
     await transaction`
