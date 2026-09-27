@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
   statuses: write
 
 concurrency:
@@ -140,3 +141,26 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$state" \
             -f context="Launch gate (${{ steps.target.outputs.target }})" \
             -f description="${description:0:139}" -f target_url="$RUN_URL" > /dev/null
+
+      # Every step above is skipped when target resolves to "none", so such a build publishes no status at
+      # all. A pull request into main from a side branch therefore waits forever on a required check that
+      # never reports. Fail the gate instead, naming the head branch, so the wait becomes a diagnosis.
+      - name: Fail a pull request into main that this build cannot gate
+        if: steps.target.outputs.target == 'none' && github.event_name == 'deployment_status'
+        run: |
+          if ! heads=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/pulls" \
+            --jq '[.[] | select(.base.ref == "main" and .state == "open") | .head.ref] | unique | join(", ")'); then
+            # Never invent a failure from an API problem: that would block every promotion to main.
+            echo "Could not list the pull requests targeting $SHA. Leaving the gate alone." >&2
+            exit 0
+          fi
+          if [ -z "$heads" ]; then
+            echo "Not a staging or production build, and no open pull request into main targets it. Nothing to gate."
+            exit 0
+          fi
+          message="Not a staging build, so it cannot be gated. Reopen this pull request from staging (head: ${heads})."
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=failure \
+            -f context="Launch gate (staging)" \
+            -f description="${message:0:139}" -f target_url="$RUN_URL" > /dev/null
+          echo "❌ ${message}" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
