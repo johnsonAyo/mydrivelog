@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { CollectionChooser, CollectionEditor, type CollectionDetail } from "./collections";
+import { CollectionChooser, CollectionEditor, CollectionSharing, type CollectionDetail } from "./collections";
 
 const collection: CollectionDetail = {
   id: "list-1",
@@ -97,5 +97,59 @@ describe("availability list editor", () => {
     const timeForm = html.slice(html.indexOf('data-dt="collection-time-form"'), html.indexOf('data-dt="collection-generator"'));
     expect(timeForm).toContain('role="alert"');
     expect(timeForm).toContain("Could not save this lesson time");
+  });
+
+  it("keeps cancellation in booked lesson options without offering a move action", () => {
+    const html = renderToStaticMarkup(<CollectionEditor
+      collection={{ ...collection,
+        slots: [{ id: "time-1", startsAt: "2026-09-30T14:00:00.000Z", endsAt: "2026-09-30T16:00:00.000Z", status: "booked" }],
+        bookings: [{ id: "booking-1", slotId: "time-1", name: "Johnson", email: "johnson@example.com", startsAt: "2026-09-30T14:00:00.000Z", endsAt: "2026-09-30T16:00:00.000Z", confirmationEmailStatus: "sent" }],
+      }}
+      defaultDuration={120} defaultGap={30} renderedAt="2026-09-27T08:00:00.000Z"
+      onSaveSlot={async () => true} onSetStatus={async () => {}} onGenerate={async () => {}}
+      onChangeBooking={async () => {}} busy={false} error={null} notice={null}
+    />);
+
+    expect(html).toContain('data-dt="collection-booking-menu"');
+    expect(html).toContain('aria-label="Options for Johnson’s lesson"');
+    expect(html).toContain("Cancel lesson");
+    expect(html).not.toContain("Move lesson");
+    expect(html).not.toContain("Confirm move");
+  });
+});
+
+describe("availability sharing", () => {
+  it("shows every saved time while offering only times the learner can book", () => {
+    const html = renderToStaticMarkup(<CollectionSharing
+      collection={{ ...collection, slots: [
+        { id: "past", startsAt: "2026-09-27T08:00:00.000Z", endsAt: "2026-09-27T10:00:00.000Z", status: "private" },
+        { id: "inside-notice", startsAt: "2026-09-28T08:00:00.000Z", endsAt: "2026-09-28T10:00:00.000Z", status: "private" },
+        { id: "ready", startsAt: "2026-09-30T08:00:00.000Z", endsAt: "2026-09-30T10:00:00.000Z", status: "private" },
+      ] }}
+      contacts={[]} bookingNoticeHours={48} timezone="Europe/London" renderedAt="2026-09-27T08:30:00.000Z"
+      bookableSlotIds={["ready"]} onInvite={async () => {}} onGeneralLink={async () => {}}
+      previewHref="/calendar/list-1/preview" generalUrl={null} lastInvitation={null}
+      busy={false} error={null} notice={null}
+    />);
+
+    expect(html).toContain("1 of 3 times will be bookable when shared");
+    expect(html).toContain("Started or past");
+    expect(html).toContain("Booking closed");
+    expect(html).toContain("Ready to share");
+    expect(html).toContain('data-dt="collection-invite-form"');
+  });
+
+  it("explains why sharing is unavailable after every time has started", () => {
+    const html = renderToStaticMarkup(<CollectionSharing
+      collection={{ ...collection, slots: [{ id: "past", startsAt: "2026-09-27T08:00:00.000Z", endsAt: "2026-09-27T10:00:00.000Z", status: "private" }] }}
+      contacts={[]} bookingNoticeHours={48} timezone="Europe/London" renderedAt="2026-09-27T08:30:00.000Z"
+      bookableSlotIds={[]} onInvite={async () => {}} onGeneralLink={async () => {}}
+      previewHref="/calendar/list-1/preview" generalUrl={null} lastInvitation={null}
+      busy={false} error={null} notice={null}
+    />);
+
+    expect(html).toContain("Every time in this list has started or passed");
+    expect(html).not.toContain('data-dt="collection-invite-form"');
+    expect(html).not.toContain("Create general link");
   });
 });

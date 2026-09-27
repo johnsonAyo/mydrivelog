@@ -6,7 +6,7 @@ import { ProductPage } from "@drivetrack/ui";
 import { canWriteWorkspace } from "@/application/auth/can-write-workspace";
 import { CollectionShareWorkspace } from "@/components/collection-share-workspace";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
-import { getCollection, listContacts } from "@/infrastructure/collections/postgres-collection-repository";
+import { getCollection, getCollectionPreview, getInstructorForWorkspace, listContacts } from "@/infrastructure/collections/postgres-collection-repository";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Share availability — MyDriveLog" };
@@ -18,12 +18,17 @@ export default async function ShareCollectionPage({ params }: { params: Promise<
   const token = cookieStore.get(process.env.SESSION_COOKIE_NAME ?? "drivetrack_session")?.value;
   const session = await currentSessionResolver.resolve(token ?? null);
   if (!session || session.workspaceStatus === "suspended") redirect("/");
-  const [collection, contacts] = await Promise.all([getCollection(session.workspaceId, id), listContacts(session.workspaceId)]);
-  if (!collection) notFound();
+  const [collection, contacts, instructor, preview] = await Promise.all([
+    getCollection(session.workspaceId, id), listContacts(session.workspaceId), getInstructorForWorkspace(session.workspaceId),
+    getCollectionPreview(session.workspaceId, id, "invitation"),
+  ]);
+  if (!collection || !instructor || !preview) notFound();
 
   return <ProductPage
-    title="Share availability" description={`Invite people to book from ${collection.name}.`}
+    title="Share availability" description={`Review the times in ${collection.name} before sending an invitation.`}
   >
-    <CollectionShareWorkspace initialCollection={collection} contacts={contacts} writable={canWriteWorkspace(session)} />
+    <CollectionShareWorkspace initialCollection={collection} contacts={contacts} writable={canWriteWorkspace(session)}
+      bookingNoticeHours={instructor.minimum_booking_notice_hours} timezone={instructor.timezone}
+      initiallyBookableSlotIds={preview.slots.map((slot) => slot.id)} renderedAt={new Date().toISOString()} />
   </ProductPage>;
 }

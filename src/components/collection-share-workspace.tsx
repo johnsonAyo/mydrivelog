@@ -5,10 +5,12 @@ import Link from "next/link";
 import { CollectionSharing, toast, type CollectionDetail, type ContactOption } from "@drivetrack/ui";
 import { errorMessage, requestJson, toastError } from "./api-request";
 
-export function CollectionShareWorkspace({ initialCollection, contacts, writable }: {
+export function CollectionShareWorkspace({ initialCollection, contacts, writable, bookingNoticeHours, timezone, initiallyBookableSlotIds, renderedAt }: {
   initialCollection: CollectionDetail; contacts: ContactOption[]; writable: boolean;
+  bookingNoticeHours: number; timezone: string; initiallyBookableSlotIds: string[]; renderedAt: string;
 }) {
   const [collection, setCollection] = useState(initialCollection);
+  const [bookableSlotIds, setBookableSlotIds] = useState(initiallyBookableSlotIds);
   const [generalUrl, setGeneralUrl] = useState<string | null>(null);
   const [lastInvitation, setLastInvitation] = useState<{ url: string; emailStatus: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,7 +34,12 @@ export function CollectionShareWorkspace({ initialCollection, contacts, writable
         setGeneralUrl(result.data.url);
         setNotice("General link ready to copy.");
       }
-      await requestJson<{ data: CollectionDetail }>(base).then(({ data }) => setCollection(data), () => {});
+      const [updated, preview] = await Promise.all([
+        requestJson<{ data: CollectionDetail }>(base).catch(() => null),
+        requestJson<{ data: { slots: { id: string }[] } }>(`${base}/preview`).catch(() => null),
+      ]);
+      if (updated) setCollection(updated.data);
+      if (preview) setBookableSlotIds(preview.data.slots.map((slot) => slot.id));
     } catch (cause) {
       setError(errorMessage(cause));
       toastError(body.kind === "invite" ? "We couldn’t send this invitation" : "We couldn’t create a general link", cause);
@@ -43,7 +50,8 @@ export function CollectionShareWorkspace({ initialCollection, contacts, writable
 
   return <div data-dt="collection-share-page">
     <Link href="/calendar">← Back to calendar</Link>
-    <CollectionSharing collection={collection} contacts={contacts}
+    <CollectionSharing collection={collection} contacts={contacts} bookingNoticeHours={bookingNoticeHours} timezone={timezone}
+      bookableSlotIds={bookableSlotIds} renderedAt={renderedAt}
       onInvite={(name, email) => share({ kind: "invite", name, email })}
       onGeneralLink={() => share({ kind: "general" })}
       previewHref={`/calendar/${collection.id}/preview`}

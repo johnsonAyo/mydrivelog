@@ -1264,6 +1264,14 @@ h3 {
 [data-dt="collection-workspace"] { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--space-5); }
 [data-dt="collection-share-page"] { display: grid; gap: var(--space-4); max-width: 720px; }
 [data-dt="collection-share-page"] > a { color: var(--green-deep); font-weight: 700; text-decoration: none; }
+[data-dt="collection-share-times"] { display: grid; gap: var(--space-4); padding: var(--space-5); border-bottom: 1px solid var(--line); }
+[data-dt="collection-share-times"] > div { display: grid; gap: var(--space-2); }
+[data-dt="collection-share-times"] ul { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+[data-dt="collection-share-times"] li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-left: 3px solid var(--line-strong); background: var(--surface-raised); }
+[data-dt="collection-share-times"] li[data-ready="true"] { border-left-color: var(--green-deep); background: var(--surface-white); }
+[data-dt="collection-share-times"] li > span:first-child { display: grid; gap: var(--space-1); }
+[data-dt="collection-share-times"] small { color: var(--ink-soft); }
+[data-dt="collection-share-guidance"] { margin: 0; padding: var(--space-3); border: 1px solid var(--yellow-line); background: var(--yellow-accent); color: var(--ink); font-size: .85rem; }
 [data-dt="collection-time-list"] { padding: var(--space-5); border-top: 1px solid var(--line); }
 [data-dt="collection-time-list-heading"] { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
 [data-dt="collection-day"] + [data-dt="collection-day"] { margin-top: var(--space-5); }
@@ -1274,8 +1282,11 @@ h3 {
 [data-dt="collection-day"] li[data-state="private"], [data-dt="collection-day"] li[data-state="closed"] { border-left-color: var(--line-strong); background: var(--surface-raised); }
 [data-dt="collection-slot-time"], [data-dt="collection-row-actions"], [data-dt="collection-form-actions"] { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
 [data-dt="collection-day"] li > small { width: 100%; color: var(--ink-soft); }
-[data-dt="collection-booking-actions"] { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-[data-dt="collection-booking-move"] { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--space-2); width: 100%; padding: var(--space-3); border: 1px solid var(--line); background: var(--surface-white); }
+[data-dt="collection-booking-menu"] { position: relative; margin-left: auto; }
+[data-dt="collection-booking-menu"] > summary { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid var(--line-strong); border-radius: var(--product-control-radius); background: var(--surface-white); color: var(--ink); cursor: pointer; font-size: 1.5rem; line-height: 1; list-style: none; }
+[data-dt="collection-booking-menu"] > summary::-webkit-details-marker { display: none; }
+[data-dt="collection-booking-menu"] > div { position: absolute; z-index: 2; top: calc(100% + var(--space-1)); right: 0; min-width: 155px; padding: var(--space-1); border: 1px solid var(--line-strong); background: var(--surface-white); box-shadow: var(--shadow-panel); }
+[data-dt="collection-booking-menu"] > div [data-dt="button"] { width: 100%; justify-content: flex-start; }
 [data-dt="collection-time-form"] { display: grid; gap: var(--space-4); padding: var(--space-5); }
 [data-dt="collection-time-form"] [data-dt="text"] { margin-top: .25rem; }
 [data-dt="collection-time-fields"] { display: grid; grid-template-columns: 1.2fr 1fr 1fr; align-items: start; gap: var(--space-3); }
@@ -1333,7 +1344,7 @@ h3 {
 #learner-profile { max-width: 860px; }
 [data-dt="learner-lesson-heading"] { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); }
 [data-dt="learner-lesson-heading"] > div { display: grid; gap: var(--space-1); }
-@media (max-width: 680px) { [data-dt="learner-row"] { grid-template-columns: minmax(0, 1fr) auto; } [data-dt="learner-row"] > span { grid-column: 1; } [data-dt="learner-row"] > [data-dt="button"] { grid-column: 2; grid-row: 1 / 3; } [data-dt="collection-booking-move"] { grid-template-columns: 1fr; } }
+@media (max-width: 680px) { [data-dt="learner-row"] { grid-template-columns: minmax(0, 1fr) auto; } [data-dt="learner-row"] > span { grid-column: 1; } [data-dt="learner-row"] > [data-dt="button"] { grid-column: 2; grid-row: 1 / 3; } }
 
 [data-dt="availability-calendar"], [data-dt="today-timeline"], [data-dt="availability-editor"], [data-dt="lesson-context"], [data-dt="debrief-composer"] { min-width: 0; border: 1px solid var(--line-strong); border-radius: var(--product-panel-radius); background: var(--surface-white); }
 [data-dt="calendar-header"], [data-dt="today-timeline"] > header, [data-dt="availability-editor"] > header, [data-dt="lesson-context"] > header, [data-dt="debrief-composer"] > header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-5); border-bottom: 1px solid var(--line); }
