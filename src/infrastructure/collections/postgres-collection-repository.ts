@@ -36,8 +36,9 @@ export async function listContacts(workspaceId: string) {
 
 export async function getInstructorForWorkspace(workspaceId: string) {
   const { client } = getDatabase();
-  const [row] = await client<{ name: string; email: string; timezone: string }[]>`
-    select coalesce(nullif(i.full_name, ''), 'Your instructor') as name, i.email, w.timezone from workspaces w join instructor_identities i on i.id = w.owner_identity_id where w.id = ${workspaceId}
+  const [row] = await client<{ name: string; email: string; timezone: string; minimum_booking_notice_hours: number }[]>`
+    select coalesce(nullif(i.full_name, ''), 'Your instructor') as name, i.email, w.timezone, w.minimum_booking_notice_hours
+    from workspaces w join instructor_identities i on i.id = w.owner_identity_id where w.id = ${workspaceId}
   `;
   return row ?? null;
 }
@@ -159,7 +160,22 @@ export async function createInvitation(workspaceId: string, collectionId: string
   return client.begin(async (sql) => {
     const [collection] = await sql<CollectionRow[]>`select * from availability_collections where id = ${collectionId} and workspace_id = ${workspaceId} for update`;
     if (!collection) return { ok: false as const, reason: "not_found" as const };
-    const [available] = await sql<{ count: number }[]>`select count(*)::int as count from collection_slots where collection_id = ${collectionId} and (status = 'open' or (${collection.status} = 'draft' and status = 'private')) and starts_at > now()`;
+    const [available] = await sql<{ count: number }[]>`
+      select count(*)::int as count from collection_slots s join workspaces w on w.id = ${workspaceId}
+      where s.collection_id = ${collectionId}
+        and (s.status = 'open' or (${collection.status} = 'draft' and s.status = 'private'))
+        and s.starts_at > now() + w.minimum_booking_notice_hours * interval '1 hour'
+        and not exists (
+          select 1 from collection_bookings b join collection_slots occupied on occupied.id = b.slot_id
+            join availability_collections c on c.id = b.collection_id
+          where c.workspace_id = ${workspaceId} and b.status = 'confirmed'
+            and occupied.starts_at < s.ends_at and occupied.ends_at > s.starts_at
+        )
+        and not exists (
+          select 1 from bookings legacy where legacy.workspace_id = ${workspaceId}
+            and legacy.status = 'confirmed' and legacy.starts_at < s.ends_at and legacy.ends_at > s.starts_at
+        )
+    `;
     if (!available.count) return { ok: false as const, reason: "empty" as const };
     const token = newToken();
     const [invite] = await sql<{ id: string }[]>`
@@ -185,7 +201,22 @@ export async function createGeneralLink(workspaceId: string, collectionId: strin
   return client.begin(async (sql) => {
     const [collection] = await sql<CollectionRow[]>`select * from availability_collections where id = ${collectionId} and workspace_id = ${workspaceId} for update`;
     if (!collection) return { ok: false as const, reason: "not_found" as const };
-    const [available] = await sql<{ count: number }[]>`select count(*)::int as count from collection_slots where collection_id = ${collectionId} and (status = 'open' or (${collection.status} = 'draft' and status = 'private')) and starts_at > now()`;
+    const [available] = await sql<{ count: number }[]>`
+      select count(*)::int as count from collection_slots s join workspaces w on w.id = ${workspaceId}
+      where s.collection_id = ${collectionId}
+        and (s.status = 'open' or (${collection.status} = 'draft' and s.status = 'private'))
+        and s.starts_at > now() + w.minimum_booking_notice_hours * interval '1 hour'
+        and not exists (
+          select 1 from collection_bookings b join collection_slots occupied on occupied.id = b.slot_id
+            join availability_collections c on c.id = b.collection_id
+          where c.workspace_id = ${workspaceId} and b.status = 'confirmed'
+            and occupied.starts_at < s.ends_at and occupied.ends_at > s.starts_at
+        )
+        and not exists (
+          select 1 from bookings legacy where legacy.workspace_id = ${workspaceId}
+            and legacy.status = 'confirmed' and legacy.starts_at < s.ends_at and legacy.ends_at > s.starts_at
+        )
+    `;
     if (!available.count) return { ok: false as const, reason: "empty" as const };
     const [existing] = await sql<{ token: string }[]>`select token from collection_general_links where collection_id = ${collectionId}`;
     if (existing) return { ok: true as const, token: existing.token, created: false };

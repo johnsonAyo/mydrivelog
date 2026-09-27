@@ -17,6 +17,15 @@ export type ContactOption = { name: string; email: string };
 export type SlotInput = { startsAt: string; endsAt: string; makeAvailable: boolean };
 export type CollectionFeedbackArea = "time" | "generator" | "list" | "share";
 
+function BookedLessonMenu({ booking, busy, onCancel }: { booking: CollectionBooking; busy: boolean; onCancel: () => void }) {
+  return <details data-dt="collection-booking-menu">
+    <summary aria-label={`Options for ${booking.name}’s lesson`} title="Lesson options">⋯</summary>
+    <div><Button type="button" variant="ghost" size="2" disabled={busy} onClick={() => {
+      if (window.confirm(`Cancel ${booking.name}’s lesson? They will be notified if email is connected.`)) onCancel();
+    }}>Cancel lesson</Button></div>
+  </details>;
+}
+
 function localDateTime(value: string) {
   const date = new Date(value);
   const digits = (number: number) => String(number).padStart(2, "0");
@@ -84,7 +93,7 @@ export function CollectionEditor({ collection, defaultDuration, defaultGap, rend
   collection: CollectionDetail; defaultDuration: number; defaultGap: number; renderedAt?: string;
   onSaveSlot: (input: SlotInput, id?: string) => Promise<boolean>; onSetStatus: (slotId: string, status: "private" | "open" | "closed") => Promise<void>;
   onGenerate: (input: { date: string; from: string; to: string; duration: number; gap: number }) => Promise<void>;
-  onChangeBooking?: (bookingId: string, action: "cancel" | "reschedule", slotId?: string) => Promise<void>;
+  onChangeBooking?: (bookingId: string) => Promise<void>;
   lessonHref?: (bookingId: string) => string; renderLessonLink?: RenderListLink;
   busy: boolean; error: string | null; notice: string | null;
   errorArea?: CollectionFeedbackArea | null; noticeArea?: CollectionFeedbackArea | null;
@@ -100,8 +109,6 @@ export function CollectionEditor({ collection, defaultDuration, defaultGap, rend
   const [rangeTo, setRangeTo] = useState("17:00");
   const [rangeDuration, setRangeDuration] = useState(defaultDuration);
   const [rangeGap, setRangeGap] = useState(defaultGap);
-  const [changingBookingId, setChangingBookingId] = useState<string | null>(null);
-  const [replacementSlotId, setReplacementSlotId] = useState("");
   const pending = usePendingAction(busy);
 
   function resetForm(keepDate = false) { setEditingId(null); if (!keepDate) setDate(""); setStart(""); setEnd(""); setLocalError(null); }
@@ -167,9 +174,8 @@ export function CollectionEditor({ collection, defaultDuration, defaultGap, rend
         {[...groups].map(([day, slots]) => <section key={day} data-dt="collection-day"><h3>{displayDate(slots[0].startsAt)}</h3><ul>{slots.map((slot) => {
           const booking = collection.bookings.find((item) => item.slotId === slot.id);
           return <li key={slot.id} data-state={slot.status}><div data-dt="collection-slot-time"><strong>{displayTime(slot.startsAt)}–{displayTime(slot.endsAt)}</strong><Badge tone={slot.status === "booked" ? "warning" : slot.status === "open" ? "success" : "neutral"}>{slot.status === "open" ? "Bookable" : slot.status === "private" ? "Private" : slot.status === "booked" ? "Booked" : "Closed"}</Badge></div>
+            {booking && onChangeBooking && <BookedLessonMenu booking={booking} busy={busy} onCancel={() => void onChangeBooking(booking.id)} />}
             {booking && <small>Booked by {booking.name} · {booking.email} {lessonHref && (renderLessonLink ? renderLessonLink(lessonHref(booking.id), `Open ${booking.name}’s lesson`, "Open lesson") : <a href={lessonHref(booking.id)}>Open lesson</a>)}</small>}
-            {booking && onChangeBooking && <div data-dt="collection-booking-actions"><Button type="button" variant="ghost" size="2" disabled={busy} onClick={() => { setChangingBookingId(changingBookingId === booking.id ? null : booking.id); setReplacementSlotId(""); }}>Move lesson</Button><Button type="button" variant="ghost" size="2" disabled={busy} loading={pending.is(`cancel:${booking.id}`)} onClick={() => { if (window.confirm(`Cancel ${booking.name}’s lesson? They will be notified if email is connected.`)) { pending.start(`cancel:${booking.id}`); void onChangeBooking(booking.id, "cancel"); } }}>Cancel lesson</Button></div>}
-            {booking && changingBookingId === booking.id && <div data-dt="collection-booking-move"><SelectField id={`move-${booking.id}`} label="Move to an open time in this week" value={replacementSlotId} onChange={(event) => setReplacementSlotId(event.target.value)}><option value="">Choose a time</option>{collection.slots.filter((candidate) => candidate.status === "open" && new Date(candidate.startsAt) > new Date()).map((candidate) => <option key={candidate.id} value={candidate.id}>{displayDate(candidate.startsAt)} · {displayTime(candidate.startsAt)}–{displayTime(candidate.endsAt)}</option>)}</SelectField><Button type="button" disabled={!replacementSlotId || busy} loading={pending.is(`move:${booking.id}`)} onClick={() => { if (onChangeBooking) { pending.start(`move:${booking.id}`); void onChangeBooking(booking.id, "reschedule", replacementSlotId); } }}>Confirm move</Button></div>}
             {slot.status !== "booked" && <div data-dt="collection-row-actions"><Button type="button" variant="ghost" size="2" onClick={() => edit(slot)}>Edit</Button>{slot.status === "private" && collection.status === "live" && <Button type="button" variant="ghost" size="2" disabled={busy} loading={pending.is(`status:${slot.id}`)} onClick={() => { pending.start(`status:${slot.id}`); void onSetStatus(slot.id, "open"); }}>Make available</Button>}{slot.status === "open" && <Button type="button" variant="ghost" size="2" disabled={busy} loading={pending.is(`status:${slot.id}`)} onClick={() => { pending.start(`status:${slot.id}`); void onSetStatus(slot.id, "closed"); }}>Close time</Button>}{slot.status === "closed" && <Button type="button" variant="ghost" size="2" disabled={busy} loading={pending.is(`status:${slot.id}`)} onClick={() => { pending.start(`status:${slot.id}`); void onSetStatus(slot.id, collection.status === "live" ? "open" : "private"); }}>Reopen</Button>}</div>}
           </li>;
         })}</ul></section>)}
@@ -184,20 +190,61 @@ export function CollectionEditor({ collection, defaultDuration, defaultGap, rend
   </div>;
 }
 
-export function CollectionSharing({ collection, contacts, onInvite, onGeneralLink, previewHref, renderPreviewLink, generalUrl, lastInvitation, busy, error, notice }: {
+function sharingState(slot: CollectionSlot, options: {
+  collectionStatus: CollectionDetail["status"];
+  booked: boolean;
+  shownInBookingPreview: boolean;
+  now: number;
+  cutoff: number;
+}) {
+  if (options.booked || slot.status === "booked") return { ready: false, label: "Booked" };
+  const startsAt = new Date(slot.startsAt).getTime();
+  if (startsAt <= options.now) return { ready: false, label: "Started or past" };
+  if (slot.status === "closed") return { ready: false, label: "Closed" };
+  if (slot.status === "private" && options.collectionStatus === "live") return { ready: false, label: "Private" };
+  if (startsAt <= options.cutoff) return { ready: false, label: "Booking closed" };
+  if (!options.shownInBookingPreview) return { ready: false, label: "Unavailable" };
+  return { ready: true, label: options.collectionStatus === "draft" ? "Ready to share" : "Available to book" };
+}
+
+export function CollectionSharing({ collection, contacts, bookingNoticeHours, timezone, bookableSlotIds, renderedAt, onInvite, onGeneralLink, previewHref, renderPreviewLink, generalUrl, lastInvitation, busy, error, notice }: {
   collection: CollectionDetail; contacts: readonly ContactOption[];
+  bookingNoticeHours: number; timezone: string; bookableSlotIds: readonly string[]; renderedAt: string;
   onInvite: (name: string, email: string) => Promise<void>; onGeneralLink: () => Promise<void>;
   previewHref: string; renderPreviewLink?: (href: string, children: ReactNode) => ReactNode; generalUrl: string | null; lastInvitation: { url: string; emailStatus: string } | null;
   busy: boolean; error: string | null; notice: string | null;
 }) {
-  const now = useCurrentTime();
+  const now = useCurrentTime() ?? new Date(renderedAt);
   const [contact, setContact] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [copied, setCopied] = useState(false);
   const pending = usePendingAction(busy);
   const link = generalUrl ?? (collection.generalToken ? `/book/availability/${collection.generalToken}` : null);
-  const hasSharableTimes = now !== null && collection.slots.some((slot) => (slot.status === "open" || (collection.status === "draft" && slot.status === "private")) && new Date(slot.startsAt) > now);
+  const cutoff = now.getTime() + bookingNoticeHours * 3_600_000;
+  const bookableIds = new Set(bookableSlotIds);
+  const bookedIds = new Set(collection.bookings.map((booking) => booking.slotId));
+  const slotRows = collection.slots.map((slot) => {
+    const state = sharingState(slot, {
+      collectionStatus: collection.status,
+      booked: bookedIds.has(slot.id),
+      shownInBookingPreview: bookableIds.has(slot.id),
+      now: now.getTime(),
+      cutoff,
+    });
+    return { slot, ...state };
+  });
+  const readyCount = slotRows.filter((row) => row.ready).length;
+  const hasSharableTimes = readyCount > 0;
+  const allStarted = slotRows.length > 0 && slotRows.every(({ slot }) => new Date(slot.startsAt) <= now);
+  const hasInsideNotice = slotRows.some(({ label }) => label === "Booking closed");
+  const onlyInsideNoticeOrPast = slotRows.every(({ label }) => label === "Booking closed" || label === "Started or past");
+  const unavailableReason = slotRows.length === 0 ? "No lesson times have been added. Go back to the calendar and add a future time."
+    : allStarted ? "Every time in this list has started or passed. Add a future time before sharing it."
+    : hasInsideNotice && onlyInsideNoticeOrPast ? `The remaining times are inside your ${bookingNoticeHours}-hour booking notice. Add a later time or change the notice in Scheduling.`
+    : "No times in this list can currently be offered. Review the statuses above, then add or reopen a future lesson time in the calendar.";
+  const dayFormat = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: timezone });
+  const timeFormat = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: timezone });
   const renewingInvitation = collection.invitations.some((invite) => invite.email.toLowerCase() === inviteEmail.trim().toLowerCase());
   async function invite(event: FormEvent) {
     event.preventDefault();
@@ -213,18 +260,23 @@ export function CollectionSharing({ collection, contacts, onInvite, onGeneralLin
     }
   }
   return <aside data-dt="collection-share">
+      <section data-dt="collection-share-times" aria-label="Times in this availability list">
+        <div><Text variant="eyebrow">BEFORE YOU SHARE</Text><Heading as="h3" size="small">Times in this list</Heading><Text variant="muted">{readyCount} of {slotRows.length} {slotRows.length === 1 ? "time" : "times"} {collection.status === "draft" ? "will be bookable when shared" : "can be booked now"}. Your minimum booking notice is {bookingNoticeHours} {bookingNoticeHours === 1 ? "hour" : "hours"}.</Text></div>
+        {slotRows.length > 0 && <ul>{slotRows.map(({ slot, ready, label }) => <li key={slot.id} data-ready={ready ? "true" : undefined}><span><strong>{dayFormat.format(new Date(slot.startsAt))}</strong><small>{timeFormat.format(new Date(slot.startsAt))}–{timeFormat.format(new Date(slot.endsAt))}</small></span><Badge tone={ready ? "success" : label === "Booking closed" ? "warning" : "neutral"}>{label}</Badge></li>)}</ul>}
+        {!hasSharableTimes && <p data-dt="collection-share-guidance" role="status">{unavailableReason}</p>}
+      </section>
       {renderPreviewLink ? renderPreviewLink(previewHref, <>Preview the booking page <span aria-hidden="true">↗</span></>) : <a data-dt="collection-preview-link" href={previewHref}>Preview the booking page <span aria-hidden="true">↗</span></a>}
-      <div data-dt="collection-section-heading"><Text variant="eyebrow">{collection.status === "live" ? "INVITATIONS" : "WHEN YOU ARE READY"}</Text><Heading as="h3" size="panel">{collection.status === "live" ? "Invite another person" : "Share this list"}</Heading><Text variant="muted">Only the times you make available appear to people you invite. A booked time disappears from everyone else’s choices.</Text></div>
-      <form data-dt="collection-invite-form" onSubmit={(event) => void invite(event)}>
+      <div data-dt="collection-section-heading"><Text variant="eyebrow">{collection.status === "live" ? "INVITATIONS" : "WHEN YOU ARE READY"}</Text><Heading as="h3" size="panel">{hasSharableTimes ? collection.status === "live" ? "Invite another person" : "Share this list" : "No times ready to share"}</Heading><Text variant="muted">Only the times marked as ready or available above will appear to people you invite. Booked times disappear from everyone else’s choices.</Text></div>
+      {hasSharableTimes && <form data-dt="collection-invite-form" onSubmit={(event) => void invite(event)}>
         {contacts.length > 0 && <SelectField id="existing-contact" label="Choose someone already known" value={contact} onChange={(event) => { setContact(event.target.value); const found = contacts.find((item) => item.email === event.target.value); if (found) { setInviteName(found.name); setInviteEmail(found.email); } }}><option value="">Or enter a new person below</option>{contacts.map((item) => <option key={item.email} value={item.email}>{item.name} · {item.email}</option>)}</SelectField>}
         <Field id="invite-name" label="Name" value={inviteName} required onChange={(event) => setInviteName(event.target.value)} />
         <Field id="invite-email" label="Email" type="email" value={inviteEmail} required onChange={(event) => setInviteEmail(event.target.value)} />
-        <Button type="submit" disabled={busy || !hasSharableTimes} loading={pending.is("invite")}>{renewingInvitation ? "Send a new link" : "Send invitation"}</Button>
+        <Button type="submit" disabled={busy} loading={pending.is("invite")}>{renewingInvitation ? "Send a new link" : "Send invitation"}</Button>
         {renewingInvitation && <Text variant="caption">This replaces the person’s earlier link. Their confirmed bookings stay in place.</Text>}
         <Text variant="caption">Sharing a draft releases its times. New times saved privately in a shared list stay private until you make them bookable.</Text>
-      </form>
-      {lastInvitation && <div data-dt="collection-link-result"><strong>{lastInvitation.emailStatus === "sent" ? "Invitation sent" : "Invitation created, but email is not connected"}</strong><Text variant="muted">{lastInvitation.emailStatus === "sent" ? "The person can open their personal booking link." : "Copy the personal link and send it yourself for now."}</Text><Button type="button" variant="surface" onClick={() => void copy(lastInvitation.url)}>{copied ? "Copied" : "Copy personal link"}</Button></div>}
-      <div data-dt="collection-general-link"><Heading as="h4" size="small">Or share one general link</Heading><Text variant="muted">Anyone with it can see the remaining times. New people confirm their email before booking.</Text>{link ? <Button type="button" variant="surface" onClick={() => void copy(link)}>{copied ? "Copied" : "Copy general link"}</Button> : <Button type="button" variant="surface" disabled={busy || !hasSharableTimes} loading={pending.is("general")} onClick={() => { pending.start("general"); void onGeneralLink(); }}>Create general link</Button>}</div>
+      </form>}
+      {lastInvitation && <div data-dt="collection-link-result"><strong>{lastInvitation.emailStatus === "sent" ? "Invitation sent" : "Invitation created, but email is not connected"}</strong><Text variant="muted">{lastInvitation.emailStatus === "sent" ? "The person can open their personal booking link." : "Copy the personal link and send it yourself for now."}</Text><Button type="button" variant="surface" disabled={!hasSharableTimes} onClick={() => void copy(lastInvitation.url)}>{copied ? "Copied" : "Copy personal link"}</Button></div>}
+      {(hasSharableTimes || link) && <div data-dt="collection-general-link"><Heading as="h4" size="small">Or share one general link</Heading><Text variant="muted">Anyone with it can see the remaining times. New people confirm their email before booking.</Text>{link ? <Button type="button" variant="surface" disabled={!hasSharableTimes} onClick={() => void copy(link)}>{copied ? "Copied" : "Copy general link"}</Button> : <Button type="button" variant="surface" disabled={busy} loading={pending.is("general")} onClick={() => { pending.start("general"); void onGeneralLink(); }}>Create general link</Button>}</div>}
       {collection.invitations.length > 0 && <div data-dt="collection-invitees"><h4>Invited people</h4><ul>{collection.invitations.map((invite) => <li key={invite.id}><span><strong>{invite.name}</strong><small>{invite.email}</small></span><Badge tone={invite.emailStatus === "sent" ? "success" : "warning"}>{invite.emailStatus === "sent" ? "Invited" : "Email pending"}</Badge></li>)}</ul></div>}
       {error && <p data-dt="collection-feedback" role="alert">{error}</p>}
       {notice && <p data-dt="collection-feedback" role="status">{notice}</p>}
@@ -233,10 +285,9 @@ export function CollectionSharing({ collection, contacts, onInvite, onGeneralLin
 
 export type PublicCollection = { collectionId?: string; collectionName: string; instructorName: string; instructorEmail?: string; contactPhone?: string | null; timezone: string; name: string | null; kind: "invitation" | "access" | "general"; slots: { id: string; startsAt: string; endsAt: string }[]; ownBookings: { id: string; startsAt: string; endsAt: string }[] };
 
-export function PublicCollectionPicker({ collection, onRequestAccess, onBook, onChangeBooking, renderHomeLink, busy, error, notice, preview = false }: {
+export function PublicCollectionPicker({ collection, onRequestAccess, onBook, onChangeBooking, busy, error, notice, preview = false }: {
   collection: PublicCollection; onRequestAccess: (name: string, email: string) => Promise<void>; onBook: (slotId: string) => Promise<void>;
   onChangeBooking?: (bookingId: string, action: "cancel" | "reschedule", slotId?: string) => Promise<void>;
-  renderHomeLink?: (children: ReactNode) => ReactNode;
   busy: boolean; error: string | null; notice: string | null; preview?: boolean;
 }) {
   const [name, setName] = useState("");
@@ -253,8 +304,7 @@ export function PublicCollectionPicker({ collection, onRequestAccess, onBook, on
     dates.set(day, [...(dates.get(day) ?? []), slot]);
   }
   return <main data-dt="public-collection">
-    <nav data-dt="public-booking-bar" aria-label="Booking navigation">{renderHomeLink ? renderHomeLink("MyDriveLog") : <strong>MyDriveLog</strong>}<span>Lesson booking</span></nav>
-    <header><Text variant="eyebrow">DRIVING LESSONS</Text><Heading as="h1" size="section">Book a driving lesson{collection.instructorName !== "Your instructor" ? ` with ${collection.instructorName}` : ""}</Heading>{dates.size > 0 && <Text variant="muted">{preview ? "This is how available times will appear to learners." : "See the available times below."}</Text>}</header>
+    <header><Heading as="h1" size="section">Book a driving lesson{collection.instructorName !== "Your instructor" ? ` with ${collection.instructorName}` : ""}</Heading>{dates.size > 0 && <Text variant="muted">{preview ? "This is how available times will appear to learners." : "See the available times below."}</Text>}</header>
     {collection.ownBookings.length > 0 && <section data-dt="public-own-bookings"><Heading as="h2" size="small">Your confirmed lessons</Heading>{collection.ownBookings.map((booking) => {
       const canChange = now && new Date(booking.startsAt).getTime() - now.getTime() >= 48 * 3_600_000;
       return <div key={booking.id} data-dt="public-booking-row"><strong>{dayFormat.format(new Date(booking.startsAt))}, {timeFormat.format(new Date(booking.startsAt))}–{timeFormat.format(new Date(booking.endsAt))}</strong>
@@ -279,7 +329,6 @@ export function CollectionEditorSkeleton() {
 
 export function PublicTimesSkeleton() {
   return <LoadingRegion label="Loading lesson times"><main data-dt="public-collection">
-    <nav data-dt="public-booking-bar" aria-label="Booking navigation"><strong>MyDriveLog</strong><span>Lesson booking</span></nav>
     <header><Stack gap="2"><Skeleton width="quarter" /><Skeleton shape="heading" width="two-thirds" /><Skeleton width="half" /></Stack></header>
     <section data-dt="public-collection-times">{[0, 1].map((day) => <div key={day} data-dt="public-collection-day"><Skeleton width="third" /><div>{[0, 1, 2].map((time) => <Skeleton key={time} shape="button" />)}</div></div>)}</section>
   </main></LoadingRegion>;

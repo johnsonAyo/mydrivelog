@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
-import { Wordmark } from "@/components/brand-mark";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 
 export const metadata: Metadata = {
   title: "Privacy notice | MyDriveLog",
@@ -11,10 +11,7 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <main data-dt="privacy-page">
-      <header data-dt="privacy-header">
-        <Link href="/" aria-label="MyDriveLog home"><Wordmark /></Link>
-        <Link href="/">Back to home</Link>
-      </header>
+      <SiteHeader mode="standalone" />
 
       <article data-dt="privacy-article">
         <p data-dt="privacy-eyebrow">Your information</p>
@@ -106,6 +103,7 @@ export default function PrivacyPage() {
           <p>We will update this page when our data practices change.</p>
         </section>
       </article>
+      <SiteFooter mode="standalone" />
     </main>
   );
 }

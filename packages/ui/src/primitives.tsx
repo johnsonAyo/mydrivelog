@@ -157,7 +157,6 @@ export function EmptyState({
 }: { title: string; description: string; action?: ReactNode }) {
   return (
     <div data-dt="empty-state">
-      <span aria-hidden="true" data-dt="empty-state-mark">—</span>
       <Heading as="h3" size="panel">{title}</Heading>
       <Text variant="muted">{description}</Text>
       {action}

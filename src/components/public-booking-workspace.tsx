@@ -30,7 +30,7 @@ export function PublicBookingWorkspace({ token }: { token: string }) {
       return { error: errorMessage(cause) };
     }
   }
-  if (error) return <div data-dt="public-booking-wrap"><EmptyState title="Booking unavailable" description={error} /></div>;
+  if (error) return <main data-dt="public-booking-wrap"><EmptyState title="Booking unavailable" description={error} /></main>;
   if (!booking) return <PublicTimesSkeleton />;
-  return <div data-dt="public-booking-wrap"><PublicBookingPicker booking={booking} onBook={book} /></div>;
+  return <main data-dt="public-booking-wrap"><PublicBookingPicker booking={booking} onBook={book} /></main>;
 }

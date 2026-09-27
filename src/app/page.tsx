@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 
 import { Faq } from "@/components/faq";
-import { Wordmark } from "@/components/brand-mark";
 import { ProductPreview } from "@/components/product-preview";
+import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -110,12 +110,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="site-footer">
-        <div className="shell footer-inner">
-          <Wordmark />
-          <div><Link href="#product">Product</Link><Link href="#faq">FAQ</Link><Link href="/privacy">Privacy</Link><Link href="mailto:hello@mydrivelog.co.uk">Contact</Link></div>
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }

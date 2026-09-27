@@ -141,19 +141,19 @@ function AvailabilityWorkspaceContent({ pilotActive, trialEndsAt, paidThrough, r
     });
   }
 
-  async function changeBooking(bookingId: string, action: "cancel" | "reschedule", slotId?: string) {
-    await execute("list", action === "cancel" ? "We couldn’t cancel this lesson" : "We couldn’t move this lesson", async () => {
-      const result = await requestJson<{ data: { emailStatus: { learner: string; instructor: string } } }>(`/api/v1/collections/${activeId}/bookings/${bookingId}`, { method: "POST", body: { action, slotId } });
+  async function cancelBooking(bookingId: string) {
+    await execute("list", "We couldn’t cancel this lesson", async () => {
+      const result = await requestJson<{ data: { emailStatus: { learner: string; instructor: string } } }>(`/api/v1/collections/${activeId}/bookings/${bookingId}`, { method: "POST", body: { action: "cancel" } });
       await refresh();
       const delivered = result.data.emailStatus.learner === "sent" && result.data.emailStatus.instructor === "sent";
-      toast.success({ title: action === "cancel" ? "Lesson cancelled" : "Lesson moved", description: delivered ? "Both people were emailed." : "Email didn’t reach everyone. Please contact the learner directly." });
-      setNotice({ area: "list", message: `${action === "cancel" ? "Lesson cancelled" : "Lesson moved"}. Calendar updated.${delivered ? " Both people were emailed." : " Email was not delivered to everyone; please contact the learner directly."}` });
+      toast.success({ title: "Lesson cancelled", description: delivered ? "Both people were emailed." : "Email didn’t reach everyone. Please contact the learner directly." });
+      setNotice({ area: "list", message: `Lesson cancelled. Calendar updated.${delivered ? " Both people were emailed." : " Email was not delivered to everyone; please contact the learner directly."}` });
     });
   }
 
   return <Stack gap="5">
     {index.isError ? <EmptyState title="Availability unavailable" description="We couldn’t load your lists. Try refreshing the page." /> : <CollectionChooser weeks={weeks} monthLabel={monthLabel} selectedId={activeId} onPreviousMonth={() => moveMonth(-1)} onNextMonth={() => moveMonth(1)} onCreate={create} onSelect={selectCollection} previewHref={(id) => `/calendar/${id}/preview`} shareHref={(id) => `/calendar/${id}/share`} renderLink={(href, ariaLabel, children) => <Link href={href} aria-label={ariaLabel}>{children}</Link>} busy={creating || !active} loading={index.isLoading} error={error?.area === "create" ? error.message : null} />}
     {!activeId && !index.isLoading && !index.isError && <EmptyState title="Choose a week to begin" description="Select Plan week above. Add one or more lesson times, save them privately, and share when you are ready." />}
-    {activeId && (detail.data ? <CollectionEditor key={`${activeId}-${settings.data?.defaultSessionMinutes ?? 120}-${settings.data?.bufferWarningMinutes ?? 30}`} collection={detail.data} defaultDuration={settings.data?.defaultSessionMinutes ?? 120} defaultGap={settings.data?.bufferWarningMinutes ?? 30} renderedAt={renderedAt} onSaveSlot={saveSlot} onSetStatus={setStatus} onGenerate={generate} onChangeBooking={changeBooking} lessonHref={(bookingId) => `/lessons/${bookingId}`} renderLessonLink={(href, ariaLabel, children) => <Link href={href} aria-label={ariaLabel}>{children}</Link>} busy={editing || !active} error={error?.area !== "create" ? error?.message ?? null : null} errorArea={error?.area !== "create" ? error?.area ?? null : null} notice={notice?.message ?? null} noticeArea={notice?.area !== "create" ? notice?.area ?? null : null} /> : detail.isError ? <EmptyState title="Could not open this list" description="Please choose it again or refresh the page." /> : <CollectionEditorSkeleton />)}
+    {activeId && (detail.data ? <CollectionEditor key={`${activeId}-${settings.data?.defaultSessionMinutes ?? 120}-${settings.data?.bufferWarningMinutes ?? 30}`} collection={detail.data} defaultDuration={settings.data?.defaultSessionMinutes ?? 120} defaultGap={settings.data?.bufferWarningMinutes ?? 30} renderedAt={renderedAt} onSaveSlot={saveSlot} onSetStatus={setStatus} onGenerate={generate} onChangeBooking={cancelBooking} lessonHref={(bookingId) => `/lessons/${bookingId}`} renderLessonLink={(href, ariaLabel, children) => <Link href={href} aria-label={ariaLabel}>{children}</Link>} busy={editing || !active} error={error?.area !== "create" ? error?.message ?? null : null} errorArea={error?.area !== "create" ? error?.area ?? null : null} notice={notice?.message ?? null} noticeArea={notice?.area !== "create" ? notice?.area ?? null : null} /> : detail.isError ? <EmptyState title="Could not open this list" description="Please choose it again or refresh the page." /> : <CollectionEditorSkeleton />)}
   </Stack>;
 }
