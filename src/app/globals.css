@@ -66,7 +66,7 @@ svg {
   outline: 2px solid var(--green-deep);
   outline-offset: 3px;
 }
-@scope (.landing-page) {
+@scope (.landing-page, [data-dt="access-page"], [data-dt="book-site"]) {
 .shell {
   width: min(1250px, calc(100% - 40px));
   margin-inline: auto;
@@ -1214,7 +1214,6 @@ h3 {
 [data-dt="field"] [data-error] { color: var(--danger-deep); }
 [data-dt="field"] [aria-invalid="true"] { border-color: var(--danger-deep); }
 [data-dt="empty-state"] { display: grid; justify-items: start; gap: .7rem; padding: var(--space-6); border: 1px dashed var(--line-strong); border-radius: var(--product-panel-radius); background: var(--surface-raised); }
-[data-dt="empty-state-mark"] { color: var(--green-deep); font-size: 2rem; line-height: 1; }
 
 [data-dt="product-shell"] { display: grid; min-height: 100dvh; grid-template-columns: 220px minmax(0, 1fr); align-items: start; border: 1px solid var(--line-strong); border-radius: var(--product-panel-radius); background: var(--surface-white); box-shadow: var(--shadow-panel); }
 [data-dt="product-sidebar"] { position: sticky; top: 0; display: flex; flex-direction: column; height: 100dvh; border-right: 1px solid var(--line); background: var(--surface-raised); }
@@ -1314,11 +1313,9 @@ h3 {
 [data-dt="collection-invitees"] li { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); padding: var(--space-2) 0; border-top: 1px solid var(--line); }
 [data-dt="collection-invitees"] li span { display: grid; gap: .2rem; overflow-wrap: anywhere; }
 [data-dt="collection-feedback"] { margin: var(--space-4) var(--space-5); padding: var(--space-3); border: 1px solid var(--yellow-line); background: var(--yellow-accent); color: var(--ink); font-size: .85rem; }
+[data-dt="book-site"] { display: grid; grid-template-rows: auto 1fr auto; min-height: 100dvh; }
+[data-dt="book-site-content"] { min-width: 0; }
 [data-dt="public-collection"] { width: min(760px, calc(100% - 2 * var(--space-4))); margin: clamp(2rem, 7vw, 6rem) auto; }
-[data-dt="public-booking-bar"] { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--line); background: var(--surface-raised); }
-[data-dt="public-booking-bar"] a, [data-dt="public-booking-bar"] strong { color: var(--green-deep); font-size: 1rem; font-weight: 800; letter-spacing: -.04em; text-decoration: none; }
-[data-dt="public-booking-bar"] a:focus-visible { outline: 2px solid var(--green-deep); outline-offset: 3px; }
-[data-dt="public-booking-bar"] span { color: var(--ink-soft); font-size: .8rem; font-weight: 650; }
 [data-dt="public-collection"] > header, [data-dt="public-collection-times"], [data-dt="public-verify-form"], [data-dt="public-own-bookings"] { display: grid; gap: var(--space-3); padding: var(--space-6); border-bottom: 1px solid var(--line); }
 [data-dt="public-collection"] > header [data-dt="text"] { max-width: 58ch; }
 [data-dt="public-collection-day"] { display: grid; gap: var(--space-3); padding: var(--space-3) 0; }
@@ -1326,7 +1323,7 @@ h3 {
 [data-dt="public-collection-day"] > div { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 [data-dt="public-time-label"] { display: inline-flex; min-height: 44px; align-items: center; padding: var(--space-2) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--product-control-radius); background: var(--surface-raised); color: var(--ink); font-size: .88rem; font-weight: 650; }
 [data-dt="public-verify-form"] [data-dt="button"] { justify-self: start; }
-@media (max-width: 640px) { [data-dt="public-booking-bar"], [data-dt="public-collection"] > header, [data-dt="public-collection-times"], [data-dt="public-verify-form"], [data-dt="public-own-bookings"] { padding: var(--space-4); } }
+@media (max-width: 640px) { [data-dt="public-collection"] > header, [data-dt="public-collection-times"], [data-dt="public-verify-form"], [data-dt="public-own-bookings"] { padding: var(--space-4); } }
 [data-dt="public-booking-row"] { display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--line); background: var(--surface-white); }
 [data-dt="public-booking-actions"] { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 [data-dt="public-reschedule"] { display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--line); background: var(--surface-raised); }
@@ -1462,7 +1459,8 @@ h3 {
 [data-dt="lab-section"] { display: grid; gap: var(--space-4); margin-top: var(--space-8); }
 [data-dt="lab-grid"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--space-4); }
 [data-dt="lab"] [data-dt="surface"] { min-width: 0; }
-[data-dt="access-page"] { display: grid; min-height: 100dvh; place-items: center; padding: var(--space-5); background: var(--surface-paper); }
+[data-dt="access-page"] { display: grid; grid-template-rows: auto 1fr auto; min-height: 100dvh; background: var(--surface-paper); }
+[data-dt="access-main"] { display: grid; align-content: center; justify-items: center; padding: var(--space-5); }
 [data-dt="access-card"] { display: grid; gap: var(--space-4); width: min(100%, 510px); padding: clamp(var(--space-5), 5vw, var(--space-7)); border: 1px solid var(--line-strong); border-radius: var(--product-panel-radius); background: var(--surface-white); box-shadow: var(--shadow-panel); }
 [data-dt="access-card"] [data-dt="heading"] { margin: 0; }
 [data-dt="access-form"] { display: grid; gap: var(--space-4); margin-top: var(--space-3); }

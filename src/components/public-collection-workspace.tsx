@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { EmptyState, PublicCollectionPicker, toast, type PublicCollection } from "@drivetrack/ui";
 import { ApiError, errorMessage, requestJson, toastError } from "./api-request";
 
@@ -61,7 +60,7 @@ export function PublicCollectionWorkspace({ token }: { token: string }) {
 
   if (loadingError) return <div data-dt="public-booking-wrap"><EmptyState title="Booking unavailable" description={loadingError} /></div>;
   if (!collection) return <div data-dt="public-booking-wrap"><p>Loading lesson times…</p></div>;
-  return <PublicCollectionPicker collection={collection} renderHomeLink={(children) => <Link href="/">{children}</Link>}
+  return <PublicCollectionPicker collection={collection}
     onRequestAccess={(name, email) => act({ action: "request_access", name, email })}
     onBook={(slotId) => act({ action: "claim", slotId })}
     onChangeBooking={(bookingId, action, slotId) => act({ action, collectionId: collection.collectionId, bookingId, slotId })}

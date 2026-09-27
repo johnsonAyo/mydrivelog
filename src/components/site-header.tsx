@@ -15,10 +15,13 @@ const sections: { id: Section; label: string }[] = [
   { id: "faq", label: "FAQ" },
 ];
 
-export function SiteHeader({ testingWorkspace = false }: { testingWorkspace?: boolean }) {
+export function SiteHeader({ testingWorkspace = false, mode = "landing" }: { testingWorkspace?: boolean; mode?: "landing" | "standalone" }) {
+  const landing = mode === "landing";
   const [active, setActive] = useState<Section>("product");
 
   useEffect(() => {
+    if (!landing) return;
+
     let frame = 0;
 
     const update = () => {
@@ -43,18 +46,18 @@ export function SiteHeader({ testingWorkspace = false }: { testingWorkspace?: bo
       window.removeEventListener("resize", onScroll);
       if (frame) window.cancelAnimationFrame(frame);
     };
-  }, []);
+  }, [landing]);
 
   return (
     <header className="site-header">
       <div className="shell header-inner">
-        <Link href="#top" aria-label="MyDriveLog home"><Wordmark /></Link>
-        <nav aria-label="Main navigation" data-active={active}>
+        <Link href={landing ? "#top" : "/"} aria-label="MyDriveLog home"><Wordmark /></Link>
+        <nav aria-label="Main navigation" data-active={landing ? active : undefined}>
           {sections.map(({ id, label }) => (
             <Link
-              href={`#${id}`}
+              href={landing ? `#${id}` : `/#${id}`}
               key={id}
-              aria-current={active === id ? "location" : undefined}
+              aria-current={landing && active === id ? "location" : undefined}
             >
               {label}
             </Link>

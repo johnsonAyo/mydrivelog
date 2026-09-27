@@ -33,7 +33,9 @@ describe("public lesson booking page", () => {
     expect(html).not.toContain('data-dt="public-verify-form"');
     expect(html).toContain("Book a driving lesson with Alex");
     expect(html).not.toContain("21–27 September 2026");
-    expect(html).toContain('aria-label="Booking navigation"');
+    expect(html).not.toContain('aria-label="Booking navigation"');
+    expect(html).not.toContain('data-dt="empty-state-mark"');
+    expect(html).not.toContain("DRIVING LESSONS");
   });
 
   it("shows times as information before the email booking step", () => {

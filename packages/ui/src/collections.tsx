@@ -280,10 +280,9 @@ export function CollectionSharing({ collection, contacts, bookingNoticeHours, ti
 
 export type PublicCollection = { collectionId?: string; collectionName: string; instructorName: string; instructorEmail?: string; contactPhone?: string | null; timezone: string; name: string | null; kind: "invitation" | "access" | "general"; slots: { id: string; startsAt: string; endsAt: string }[]; ownBookings: { id: string; startsAt: string; endsAt: string }[] };
 
-export function PublicCollectionPicker({ collection, onRequestAccess, onBook, onChangeBooking, renderHomeLink, busy, error, notice, preview = false }: {
+export function PublicCollectionPicker({ collection, onRequestAccess, onBook, onChangeBooking, busy, error, notice, preview = false }: {
   collection: PublicCollection; onRequestAccess: (name: string, email: string) => Promise<void>; onBook: (slotId: string) => Promise<void>;
   onChangeBooking?: (bookingId: string, action: "cancel" | "reschedule", slotId?: string) => Promise<void>;
-  renderHomeLink?: (children: ReactNode) => ReactNode;
   busy: boolean; error: string | null; notice: string | null; preview?: boolean;
 }) {
   const [name, setName] = useState("");
@@ -299,8 +298,7 @@ export function PublicCollectionPicker({ collection, onRequestAccess, onBook, on
     dates.set(day, [...(dates.get(day) ?? []), slot]);
   }
   return <main data-dt="public-collection">
-    <nav data-dt="public-booking-bar" aria-label="Booking navigation">{renderHomeLink ? renderHomeLink("MyDriveLog") : <strong>MyDriveLog</strong>}<span>Lesson booking</span></nav>
-    <header><Text variant="eyebrow">DRIVING LESSONS</Text><Heading as="h1" size="section">Book a driving lesson{collection.instructorName !== "Your instructor" ? ` with ${collection.instructorName}` : ""}</Heading>{dates.size > 0 && <Text variant="muted">{preview ? "This is how available times will appear to learners." : "See the available times below."}</Text>}</header>
+    <header><Heading as="h1" size="section">Book a driving lesson{collection.instructorName !== "Your instructor" ? ` with ${collection.instructorName}` : ""}</Heading>{dates.size > 0 && <Text variant="muted">{preview ? "This is how available times will appear to learners." : "See the available times below."}</Text>}</header>
     {collection.ownBookings.length > 0 && <section data-dt="public-own-bookings"><Heading as="h2" size="small">Your confirmed lessons</Heading>{collection.ownBookings.map((booking) => {
       const canChange = now && new Date(booking.startsAt).getTime() - now.getTime() >= 48 * 3_600_000;
       return <div key={booking.id} data-dt="public-booking-row"><strong>{dayFormat.format(new Date(booking.startsAt))}, {timeFormat.format(new Date(booking.startsAt))}–{timeFormat.format(new Date(booking.endsAt))}</strong>
