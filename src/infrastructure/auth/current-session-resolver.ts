@@ -21,6 +21,7 @@ export const currentSessionResolver: SessionResolver = {
         trialEndsAt: workspaces.trialEndsAt,
         paidThrough: workspaces.paidThrough,
         instructorName: instructorIdentities.fullName,
+        instructorEmail: instructorIdentities.email,
       })
       .from(workspaces)
       .leftJoin(instructorIdentities, eq(instructorIdentities.id, workspaces.ownerIdentityId))

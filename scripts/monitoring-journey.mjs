@@ -132,7 +132,7 @@ async function journey() {
   ensure(cookie, "Workspace session cookie missing");
   if (session.data?.next === "/onboarding") {
     step = "test instructor onboarding";
-    expectStatus(await request("/api/v1/auth/onboarding", { method: "POST", body: { firstName: "Monitor" } }), 200, "Test instructor onboarding");
+    expectStatus(await request("/api/v1/auth/onboarding", { method: "POST", body: { workspaceName: "Monitor Driving School" } }), 200, "Test instructor onboarding");
   }
   log("✓ Signed in with a delivered code");
 

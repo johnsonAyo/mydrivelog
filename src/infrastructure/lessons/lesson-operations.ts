@@ -60,7 +60,9 @@ export async function previewLessonMessage(workspaceId: string, bookingId: strin
     nextLessonFocus: lesson.draft.nextLessonFocus, skills: lesson.draft.skills };
   if (input.kind === "recap" && !hasSharedRecap(recap)) return { ok: false, reason: "empty" };
   const { client } = getDatabase();
-  const [workspace] = await client<{ name: string }[]>`select name from workspaces where id = ${workspaceId}`;
+  const [workspace] = await client<{ name: string }[]>`
+    select coalesce(nullif(i.full_name, ''), 'Your instructor') as name from workspaces w
+      join instructor_identities i on i.id = w.owner_identity_id where w.id = ${workspaceId}`;
   const { subject, body } = formatLessonEmail({ kind: input.kind, learnerName: lesson.learnerName,
     instructorName: workspace.name, recap, correction: input.correction });
   return { ok: true, value: { recipientEmail: lesson.learnerEmail, subject, body,
@@ -104,7 +106,9 @@ export async function queueLessonMessage(workspaceId: string, bookingId: string,
     const recap: SharedRecap = { whatWeWorkedOn: draft.what_we_worked_on, whatToPractise: draft.what_to_practise,
       nextLessonFocus: draft.next_lesson_focus, skills };
     if (input.kind === "recap" && !hasSharedRecap(recap)) return { ok: false, reason: "empty" };
-    const [workspace] = await sql<{ name: string }[]>`select name from workspaces where id = ${workspaceId}`;
+    const [workspace] = await sql<{ name: string }[]>`
+      select coalesce(nullif(i.full_name, ''), 'Your instructor') as name from workspaces w
+        join instructor_identities i on i.id = w.owner_identity_id where w.id = ${workspaceId}`;
     const { subject, body } = formatLessonEmail({ kind: input.kind, learnerName: booking.name, instructorName: workspace.name,
       recap, correction: input.correction });
     if (previewHash(booking.email, subject, body) !== input.previewHash) return { ok: false, reason: "preview_changed" };

@@ -103,9 +103,9 @@ export const postgresAuthRepository: AuthRepository = {
     });
   },
 
-  async completeOnboarding({ identityId, fullName }) {
+  async completeOnboarding({ identityId, workspaceName }) {
     const { db } = getDatabase();
-    const updated = await db.update(instructorIdentities).set({ fullName })
+    const updated = await db.update(instructorIdentities).set({ fullName: workspaceName })
       .where(and(eq(instructorIdentities.id, identityId), isNull(instructorIdentities.fullName)))
       .returning({ id: instructorIdentities.id });
     return updated.length > 0;

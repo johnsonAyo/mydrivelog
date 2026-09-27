@@ -1,8 +1,10 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { instructorFirstName } from "@/application/auth/session-context";
+import { greetingNameFromEmail } from "@/application/auth/greeting-name";
 import { InstructorSidebar } from "@/components/instructor-sidebar";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
+
+const NEUTRAL_GREETING = "Your account";
 
 export default async function InstructorLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
@@ -11,7 +13,7 @@ export default async function InstructorLayout({ children }: { children: React.R
   if (!session || session.workspaceStatus === "suspended") redirect("/");
 
   return <div data-dt="product-shell">
-    <InstructorSidebar instructorName={instructorFirstName(session.instructorName)} />
+    <InstructorSidebar greetingName={greetingNameFromEmail(session.instructorEmail) ?? NEUTRAL_GREETING} />
     <div data-dt="product-main">{children}</div>
   </div>;
 }
