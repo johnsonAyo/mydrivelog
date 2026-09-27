@@ -28,7 +28,7 @@ export function InstructorOnboarding() {
     <Heading as="h1" size="section" id="onboarding-title">Name your workspace</Heading>
     <Text variant="muted">This is what your students or learners see when they book a lesson.</Text>
     <form data-dt="access-form" onSubmit={submit}>
-      <Field id="workspace-name" name="workspaceName" label="Workspace name" type="text" autoComplete="organization" minLength={1} maxLength={100} required placeholder="e.g. Sarah’s Driving School" />
+      <Field id="workspace-name" name="workspaceName" label="Workspace name" type="text" autoComplete="organization" minLength={1} maxLength={100} required placeholder="e.g. Sarah" />
       <Button type="submit" loading={busy}>Open my workspace</Button>
     </form>
   </section>;
