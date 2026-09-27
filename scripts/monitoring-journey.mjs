@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Launch journey check. Signs in as the dedicated monitoring instructor, invites a test learner,
+// Launch journey check, staging only (production gets monitoring-smoke.mjs). Signs in as the dedicated monitoring instructor, invites a test learner,
 // books a lesson, confirms every email was delivered, cleans up, and sends a [TEST] Telegram result.
 // Delivery checks, the Firebase web key and the Telegram alert all go through the deployment's own
 // secret-protected /api/v1/monitoring endpoints, so CI only holds the monitoring and bypass secrets.
@@ -91,10 +91,12 @@ function mondayWeeksAhead(weeks) {
 async function journey() {
   ensure(baseUrl?.startsWith("https://"), "MONITORING_BASE_URL must be an HTTPS URL");
   ensure(instructorEmail && monitoringSecret, "Journey configuration is incomplete (test instructor email, monitoring secret)");
+  // Production gets the read-only smoke check (monitoring-smoke.mjs). The journey writes data, so never there.
+  ensure(expectEnvironment === "staging", "The journey runs on staging only. Use scripts/monitoring-smoke.mjs for production");
 
   step = "deployment health";
   const health = expectStatus(await request("/api/v1/health"), 200, "Health check");
-  if (expectEnvironment) ensure(health.environment === expectEnvironment, `Deployment reports environment "${health.environment}", expected "${expectEnvironment}"`);
+  ensure(health.environment === "staging", `Deployment reports environment "${health.environment}". The journey runs on staging only`);
   if (expectRelease) ensure(health.release === expectRelease, `Deployment runs ${health.release}, expected ${expectRelease}`);
   step = "database readiness";
   expectStatus(await request("/api/v1/ready"), 200, "Database readiness");
@@ -189,7 +191,7 @@ async function journey() {
 
 async function reportFailure(message) {
   if (!monitoringSecret) return;
-  if (cookie) await request("/api/v1/monitoring/cleanup", { method: "POST", headers: monitoringHeaders() }).catch(() => undefined);
+  if (cookie && expectEnvironment === "staging") await request("/api/v1/monitoring/cleanup", { method: "POST", headers: monitoringHeaders() }).catch(() => undefined);
   const body = { outcome: "failed", step: `${step}: ${message}`, about: expectEnvironment };
   const sentBy = async (base) => {
     const response = await request("/api/v1/monitoring/test-alert", { method: "POST", headers: monitoringHeaders(), body, base }).catch(() => null);
