@@ -24,13 +24,17 @@ export function monitoringAddress(kind: EmailKind, run?: string): string | null 
   return instructor.replace("@", `+learner-${run}@`);
 }
 
+export class EmailProviderLookupError extends Error {
+  constructor(readonly status: number) { super(`Brevo lookup failed (${status})`); }
+}
+
 async function brevo<T>(path: string): Promise<T> {
   const key = process.env.BREVO_API_KEY;
   if (!key) throw new Error("Brevo is not configured");
   const response = await fetch(`https://api.brevo.com/v3${path}`, {
     headers: { "api-key": key, accept: "application/json" }, signal: AbortSignal.timeout(10_000), cache: "no-store",
   });
-  if (!response.ok) throw new Error(`Brevo lookup failed (${response.status})`);
+  if (!response.ok) throw new EmailProviderLookupError(response.status);
   return response.json() as Promise<T>;
 }
 

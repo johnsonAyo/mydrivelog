@@ -66,12 +66,18 @@ async function waitForDelivery(kind, since, what, { run, linkToken } = {}) {
   let last = "none";
   while (Date.now() < deadline) {
     const lookup = await request("/api/v1/monitoring/email-delivery", { method: "POST", headers: monitoringHeaders(), body: { kind, run, since, linkToken } });
+    if (lookup.status === 503 && lookup.data?.error === "email_provider_rate_limited") {
+      last = "rate_limited";
+      await sleep(20_000);
+      continue;
+    }
     const result = expectStatus(lookup, 200, `${what} delivery lookup`);
     last = result.status;
     if (result.status === "failed") throw new JourneyError(`${what} email was not delivered (${result.events.join(", ")})`);
     if (result.status === "delivered") return result;
-    await sleep(3_000);
+    await sleep(8_000);
   }
+  if (last === "rate_limited") throw new JourneyError(`${what} delivery could not be checked because the email provider kept rate limiting lookups for ${EMAIL_TIMEOUT_MS / 1000}s`);
   throw new JourneyError(last === "none" ? `${what} email never reached the email provider within ${EMAIL_TIMEOUT_MS / 1000}s` : `${what} email was sent but not delivered within ${EMAIL_TIMEOUT_MS / 1000}s`);
 }
 

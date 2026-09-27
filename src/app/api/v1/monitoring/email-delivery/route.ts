@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { EMAIL_KINDS, emailDelivery, monitoringAddress, type EmailKind } from "@/infrastructure/monitoring/email-delivery";
+import { EMAIL_KINDS, EmailProviderLookupError, emailDelivery, monitoringAddress, type EmailKind } from "@/infrastructure/monitoring/email-delivery";
 import { hasMonitoringSecret } from "@/infrastructure/monitoring/secret";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +24,10 @@ export async function POST(request: NextRequest) {
     const result = await emailDelivery(parsed.data.kind, address, parsed.data.since, parsed.data.linkToken);
     return NextResponse.json({ data: result }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    // Brevo rate limits its log API. Tell the journey to back off instead of failing the run.
+    if (error instanceof EmailProviderLookupError && error.status === 429) {
+      return NextResponse.json({ error: "email_provider_rate_limited" }, { status: 503, headers: { "Retry-After": "20", "Cache-Control": "no-store" } });
+    }
     return NextResponse.json({ error: error instanceof Error ? error.message : "lookup_failed" }, { status: 502 });
   }
 }
