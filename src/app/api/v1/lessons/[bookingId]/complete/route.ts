@@ -4,6 +4,7 @@ import { z } from "zod";
 import { canWriteWorkspace } from "@/application/auth/can-write-workspace";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 import { completeInstructorLesson } from "@/infrastructure/lessons/lesson-operations";
+import { queueActivity } from "@/infrastructure/monitoring/telegram";
 import { authenticateRequest } from "@/presentation/http/authenticate-request";
 import { problem } from "@/presentation/http/problem";
 
@@ -18,5 +19,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const result = await completeInstructorLesson(auth.session.workspaceId, bookingId, parsed.data.acknowledgeEmpty);
   if (!result.ok) return problem(result.reason === "not_found" ? 404 : 409, result.reason,
     result.reason === "too_early" ? "The lesson has not ended yet" : result.reason === "empty" ? "Acknowledge completing without notes" : "Lesson not found");
+  queueActivity({ action: "lesson_completed", reference: bookingId, actor: auth.session });
   return NextResponse.json({ data: { completed: true } }, { headers: { "Cache-Control": "private, no-store" } });
 }

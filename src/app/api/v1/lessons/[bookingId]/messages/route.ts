@@ -5,6 +5,7 @@ import { canWriteWorkspace } from "@/application/auth/can-write-workspace";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 import { dispatchLessonMessage } from "@/infrastructure/lessons/lesson-delivery";
 import { queueLessonMessage } from "@/infrastructure/lessons/lesson-operations";
+import { queueActivity, queueCritical } from "@/infrastructure/monitoring/telegram";
 import { authenticateRequest } from "@/presentation/http/authenticate-request";
 import { problem } from "@/presentation/http/problem";
 
@@ -20,6 +21,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!parsed.success) return problem(400, "invalid_request", "Review the message again before sending");
   const result = await queueLessonMessage(auth.session.workspaceId, bookingId, parsed.data);
   if (!result.ok) return problem(result.reason === "not_found" ? 404 : 409, result.reason, "The message changed or cannot be sent yet. Review it again");
-  await dispatchLessonMessage(auth.session.workspaceId, result.value.id);
+  const status = await dispatchLessonMessage(auth.session.workspaceId, result.value.id);
+  queueActivity({ action: `${parsed.data.kind}_send_requested`, reference: result.value.id, actor: auth.session });
+  if (status !== "delivered") queueCritical("lesson_message_delivery_failed", "/api/v1/lessons/[bookingId]/messages", result.value.id);
   return NextResponse.json({ data: { id: result.value.id } }, { headers: { "Cache-Control": "private, no-store" } });
 }

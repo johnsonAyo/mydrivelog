@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sendBookingConfirmation } from "@/infrastructure/booking/booking-email";
 import { claimBooking, getPublicBooking, setBookingEmailStatus } from "@/infrastructure/booking/postgres-booking-repository";
+import { queueActivity, queueCritical } from "@/infrastructure/monitoring/telegram";
 import { problem } from "@/presentation/http/problem";
 
 const claimSchema = z.object({ startsAt: z.iso.datetime({ offset: true }) });
@@ -34,6 +35,8 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
     timezone: publicView?.timezone ?? "Europe/London", url: `${process.env.APP_BASE_URL ?? request.nextUrl.origin}/book/${token}`,
   });
   await setBookingEmailStatus(claimed.id, emailStatus);
+  queueActivity({ action: "booking_confirmed", reference: claimed.id });
+  if (emailStatus !== "sent") queueCritical("booking_confirmation_email_failed", "/api/public/book/[token]", claimed.id);
   return NextResponse.json({ data: { id: claimed.id, startsAt: claimed.startsAt, endsAt: claimed.endsAt, confirmationEmailStatus: emailStatus } },
     { status: 201, headers: { "Cache-Control": "private, no-store" } });
 }

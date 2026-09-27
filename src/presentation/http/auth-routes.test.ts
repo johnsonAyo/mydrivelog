@@ -12,7 +12,7 @@ function dependencies(overrides: Partial<AuthRepository> = {}) {
     invalidateCode: vi.fn(async () => undefined),
     consumeCode: vi.fn(async () => "valid" as const),
     establishSession: vi.fn(async () => ({ needsOnboarding: true })),
-    completeOnboarding: vi.fn(async () => undefined),
+    completeOnboarding: vi.fn(async () => true),
     revokeSession: vi.fn(async () => undefined),
     ...overrides,
   };

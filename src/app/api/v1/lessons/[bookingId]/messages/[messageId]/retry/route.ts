@@ -5,6 +5,7 @@ import { canWriteWorkspace } from "@/application/auth/can-write-workspace";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 import { getDatabase } from "@/infrastructure/database/client";
 import { dispatchLessonMessage } from "@/infrastructure/lessons/lesson-delivery";
+import { queueActivity, queueCritical } from "@/infrastructure/monitoring/telegram";
 import { authenticateRequest } from "@/presentation/http/authenticate-request";
 import { problem } from "@/presentation/http/problem";
 
@@ -24,5 +25,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     await client`update lesson_messages set status = 'needs_attention' where id = ${messageId} and status = 'sending' and last_attempt_at < now() - interval '5 minutes'`;
   } else if (row.status !== "needs_attention") return problem(409, "not_retryable", "This message is still processing or already delivered");
   const status = await dispatchLessonMessage(auth.session.workspaceId, messageId);
+  queueActivity({ action: "lesson_message_retried", reference: messageId, actor: auth.session });
+  if (status !== "delivered") queueCritical("lesson_message_delivery_failed", "/api/v1/lessons/[bookingId]/messages/[messageId]/retry", messageId);
   return NextResponse.json({ data: { id: messageId, status } }, { headers: { "Cache-Control": "private, no-store" } });
 }

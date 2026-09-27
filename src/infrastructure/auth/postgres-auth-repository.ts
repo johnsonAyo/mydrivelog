@@ -98,7 +98,10 @@ export const postgresAuthRepository: AuthRepository = {
 
   async completeOnboarding({ identityId, fullName }) {
     const { db } = getDatabase();
-    await db.update(instructorIdentities).set({ fullName }).where(eq(instructorIdentities.id, identityId));
+    const updated = await db.update(instructorIdentities).set({ fullName })
+      .where(and(eq(instructorIdentities.id, identityId), isNull(instructorIdentities.fullName)))
+      .returning({ id: instructorIdentities.id });
+    return updated.length > 0;
   },
   async revokeSession(sessionTokenHash) {
     const { db } = getDatabase();

@@ -5,6 +5,7 @@ import { canWriteWorkspace } from "@/application/auth/can-write-workspace";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 import { sendBookingInvitation } from "@/infrastructure/booking/booking-email";
 import { createGeneralLink, createInvitation, getInstructorForWorkspace, setInvitationEmailStatus } from "@/infrastructure/collections/postgres-collection-repository";
+import { queueActivity, queueCritical } from "@/infrastructure/monitoring/telegram";
 import { authenticateRequest } from "@/presentation/http/authenticate-request";
 import { invitationSchema } from "@/presentation/http/collection-validation";
 import { problem } from "@/presentation/http/problem";
@@ -20,6 +21,7 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   if (z.object({ kind: z.literal("general") }).safeParse(body).success) {
     const result = await createGeneralLink(auth.session.workspaceId, id);
     if (!result.ok) return problem(result.reason === "empty" ? 409 : 404, result.reason, result.reason === "empty" ? "Add a future lesson time before sharing" : "Availability draft not found");
+    if (result.created) queueActivity({ action: "general_booking_link_created", reference: id, actor: auth.session });
     return NextResponse.json({ data: { url: `${baseUrl}/book/availability/${result.token}` } });
   }
   const parsed = invitationSchema.safeParse(body);
@@ -31,5 +33,7 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   const url = `${baseUrl}/book/availability/${result.token}`;
   const emailStatus = await sendBookingInvitation({ to: parsed.data.email, name: parsed.data.name, instructor: instructor?.name ?? "Your instructor", url });
   await setInvitationEmailStatus(result.id, emailStatus);
+  queueActivity({ action: "learner_invitation_created", reference: result.id, actor: auth.session });
+  if (emailStatus !== "sent") queueCritical("invitation_email_failed", "/api/v1/collections/[id]/share", result.id);
   return NextResponse.json({ data: { id: result.id, url, emailStatus } }, { status: 201 });
 }

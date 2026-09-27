@@ -5,6 +5,7 @@ import { canWriteWorkspace } from "@/application/auth/can-write-workspace";
 import { readInstructorLesson, saveInstructorLessonDraft } from "@/application/lessons/manage-lesson-draft";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 import { postgresLessonRepository } from "@/infrastructure/lessons/postgres-lesson-repository";
+import { queueActivity } from "@/infrastructure/monitoring/telegram";
 import { authenticateRequest } from "@/presentation/http/authenticate-request";
 import { problem } from "@/presentation/http/problem";
 
@@ -49,5 +50,6 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     if (result.reason === "cancelled") return problem(409, "cancelled", "This lesson was cancelled");
     return problem(409, "revision_conflict", "These notes changed or the booking is no longer available. Reload before saving again");
   }
+  if (result.changed) queueActivity({ action: "lesson_notes_saved", reference: bookingId, actor: auth.session });
   return NextResponse.json({ data: result.lesson }, { headers: { "Cache-Control": "private, no-store" } });
 }

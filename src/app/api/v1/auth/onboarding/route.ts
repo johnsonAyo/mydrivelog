@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { postgresAuthRepository } from "@/infrastructure/auth/postgres-auth-repository";
 import { postgresSessionResolver } from "@/infrastructure/auth/postgres-session-resolver";
+import { queueActivity } from "@/infrastructure/monitoring/telegram";
 import { problem } from "@/presentation/http/problem";
 
 const inputSchema = z
@@ -25,6 +26,8 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return problem(400, "invalid_name", "Enter your first name");
   const rawName = (parsed.data.firstName ?? parsed.data.fullName)!.trim();
   const firstName = rawName.split(/\s+/)[0];
-  await postgresAuthRepository.completeOnboarding({ identityId: session.identityId, fullName: firstName });
+  const created = await postgresAuthRepository.completeOnboarding({ identityId: session.identityId, fullName: firstName });
+  if (created) queueActivity({ action: "instructor_signed_up", reference: session.workspaceId,
+    actor: { ...session, instructorName: firstName } });
   return NextResponse.json({ next: "/calendar" }, { headers: { "Cache-Control": "private, no-store" } });
 }

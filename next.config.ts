@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 // Fail shared Vercel builds that would otherwise ship a Google button with no Firebase config.
 // NEXT_PUBLIC_* values are inlined at build time, so a missing one cannot be fixed without a rebuild. Local builds are unaffected.
@@ -12,4 +13,8 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@drivetrack/ui"],
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: !process.env.SENTRY_AUTH_TOKEN,
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+  webpack: { treeshake: { removeDebugLogging: true } },
+});

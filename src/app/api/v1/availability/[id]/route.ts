@@ -4,6 +4,7 @@ import { z } from "zod";
 import { canWriteWorkspace } from "@/application/auth/can-write-workspace";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 import { editWindow, getWindowDetail } from "@/infrastructure/booking/postgres-booking-repository";
+import { queueActivity } from "@/infrastructure/monitoring/telegram";
 import { authenticateRequest } from "@/presentation/http/authenticate-request";
 import { problem } from "@/presentation/http/problem";
 
@@ -43,6 +44,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext<"/api
       result.reason === "has_bookings" ? "Booked availability cannot be moved" :
         result.reason === "release_exists" ? "Editing this window will revoke its shared links. Confirm that action first." :
           result.reason === "overlap" ? "This window overlaps another availability window" : "Availability not found");
+    queueActivity({ action: "availability_edited", reference: id, actor: auth.session });
     return NextResponse.json({ data: await getWindowDetail(auth.session.workspaceId, id), revokedLinks: result.revokedLinks });
   } catch (error) {
     if (typeof error === "object" && error && "code" in error && error.code === "23P01") return problem(409, "overlap", "This window overlaps another availability window");

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { canWriteWorkspace } from "@/application/auth/can-write-workspace";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 import { saveSlot } from "@/infrastructure/collections/postgres-collection-repository";
+import { queueActivity } from "@/infrastructure/monitoring/telegram";
 import { authenticateRequest } from "@/presentation/http/authenticate-request";
 import { exactSlotSchema } from "@/presentation/http/collection-validation";
 import { problem } from "@/presentation/http/problem";
@@ -18,5 +19,6 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   if (!parsed.success || new Date(parsed.data.startsAt) <= new Date()) return problem(400, "invalid_slot", "Choose a future start and end, between 15 minutes and 8 hours apart");
   const result = await saveSlot(auth.session.workspaceId, id, { startsAt: new Date(parsed.data.startsAt), endsAt: new Date(parsed.data.endsAt), makeAvailable: parsed.data.makeAvailable });
   if (!result.ok) return problem(result.reason === "not_found" ? 404 : 409, result.reason, result.reason === "overlap" ? "This lesson overlaps another time in the collection" : result.reason === "outside_week" ? "Choose a lesson time inside this week" : "Availability draft not found");
+  queueActivity({ action: "lesson_time_created", reference: result.slot.id, actor: auth.session });
   return NextResponse.json({ data: result.slot, warning: result.warning }, { status: 201 });
 }
