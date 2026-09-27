@@ -4,6 +4,7 @@ import type { SessionContext } from "@/application/auth/session-context";
 import { monitoringEnvironment } from "./environment";
 import { safeMonitoringPath, scrubMonitoringText } from "./sentry-privacy";
 import { bookingOwner, isMonitoringWorkspace } from "./test-workspace";
+import { formatSpike, type Spike } from "./expected-error-spikes";
 
 const TIMEOUT_MS = 5_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -178,4 +179,10 @@ export function queueCritical(critical: Critical): void {
     tags: { source: "launch-monitoring", code: critical.code.slice(0, 64), ...(critical.route ? { route: safeMonitoringPath(critical.route) } : {}) },
   }));
   inBackground("telegram-critical", () => sendCritical({ ...critical, eventId }));
+}
+
+// Bursts of expected errors (see expected-error-spikes.ts). Fire-and-forget like every other alert.
+export function queueSpike(spike: Spike): void {
+  if (!monitoringEnabled()) return;
+  inBackground("telegram-spike", () => sendTelegram(formatSpike(spike, monitoringEnvironment())));
 }
