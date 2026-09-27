@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { createHash, randomBytes, randomInt, randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -60,7 +61,8 @@ export function authRoutes({ auth, email, identity, codeSecret, now = () => new 
         issued = true;
         await email.sendAccessCode({ to: address, code });
         return noStore(NextResponse.json({ message: "A sign-in code is on its way." }, { status: 202 }));
-      } catch {
+      } catch (error) {
+        Sentry.captureException(error, { tags: { source: "auth", step: "request_code" } });
         if (issued) await auth.invalidateCode(id).catch(() => undefined);
         const correlationId = randomUUID();
         console.error("Access code request failed", { correlationId });
@@ -77,7 +79,8 @@ export function authRoutes({ auth, email, identity, codeSecret, now = () => new 
         if (result === "invalid") return noStore(problem(400, "invalid_code", "That code is invalid or expired"));
         const customToken = await identity.customTokenForVerifiedEmail(parsed.data.email);
         return noStore(NextResponse.json({ customToken }));
-      } catch {
+      } catch (error) {
+        Sentry.captureException(error, { tags: { source: "auth", step: "verify_code" } });
         const correlationId = randomUUID();
         console.error("Access code verification failed", { correlationId });
         return noStore(problem(503, "verification_unavailable", "Could not verify the code right now", correlationId));
@@ -115,7 +118,8 @@ export function authRoutes({ auth, email, identity, codeSecret, now = () => new 
           expires: sessionExpiresAt,
         });
         return response;
-      } catch {
+      } catch (error) {
+        Sentry.captureException(error, { tags: { source: "auth", step: "establish_session" } });
         const correlationId = randomUUID();
         console.error("Session creation failed", { correlationId });
         return noStore(problem(503, "session_unavailable", "Could not open your workspace right now", correlationId));

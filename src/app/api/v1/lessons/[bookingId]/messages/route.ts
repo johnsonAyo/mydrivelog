@@ -23,6 +23,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!result.ok) return problem(result.reason === "not_found" ? 404 : 409, result.reason, "The message changed or cannot be sent yet. Review it again");
   const status = await dispatchLessonMessage(auth.session.workspaceId, result.value.id);
   queueActivity({ action: `${parsed.data.kind}_send_requested`, reference: result.value.id, actor: auth.session });
-  if (status !== "delivered") queueCritical("lesson_message_delivery_failed", "/api/v1/lessons/[bookingId]/messages", result.value.id);
+  if (status !== "delivered") queueCritical({ code: "lesson_message_delivery_failed", route: "/api/v1/lessons/[bookingId]/messages", reference: result.value.id });
   return NextResponse.json({ data: { id: result.value.id } }, { headers: { "Cache-Control": "private, no-store" } });
 }

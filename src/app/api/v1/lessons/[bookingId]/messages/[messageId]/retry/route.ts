@@ -26,6 +26,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   } else if (row.status !== "needs_attention") return problem(409, "not_retryable", "This message is still processing or already delivered");
   const status = await dispatchLessonMessage(auth.session.workspaceId, messageId);
   queueActivity({ action: "lesson_message_retried", reference: messageId, actor: auth.session });
-  if (status !== "delivered") queueCritical("lesson_message_delivery_failed", "/api/v1/lessons/[bookingId]/messages/[messageId]/retry", messageId);
+  if (status !== "delivered") queueCritical({ code: "lesson_message_delivery_failed", route: "/api/v1/lessons/[bookingId]/messages/[messageId]/retry", reference: messageId });
   return NextResponse.json({ data: { id: messageId, status } }, { headers: { "Cache-Control": "private, no-store" } });
 }

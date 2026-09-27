@@ -7,6 +7,12 @@ import { authChallenges, instructorIdentities, instructorSessions, workspaces } 
 
 const REQUEST_COOLDOWN_MS = 60_000;
 const DAILY_CODE_LIMIT = 10;
+// The journey check signs in after every staging and production deploy, so its dedicated inbox gets more codes.
+const MONITORING_DAILY_CODE_LIMIT = 60;
+
+function dailyCodeLimit(email: string): number {
+  return email === process.env.MONITORING_TEST_INSTRUCTOR_EMAIL?.trim().toLowerCase() ? MONITORING_DAILY_CODE_LIMIT : DAILY_CODE_LIMIT;
+}
 const MAX_ATTEMPTS = 5;
 
 export const postgresAuthRepository: AuthRepository = {
@@ -14,13 +20,14 @@ export const postgresAuthRepository: AuthRepository = {
     const { db } = getDatabase();
     return db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${email}))`);
+      const limit = dailyCodeLimit(email);
       const recent = await tx
         .select({ createdAt: authChallenges.createdAt })
         .from(authChallenges)
         .where(and(eq(authChallenges.email, email), gt(authChallenges.createdAt, new Date(now.getTime() - 86_400_000))))
         .orderBy(desc(authChallenges.createdAt))
-        .limit(DAILY_CODE_LIMIT);
-      if (recent.length >= DAILY_CODE_LIMIT || (recent[0] && recent[0].createdAt > new Date(now.getTime() - REQUEST_COOLDOWN_MS))) {
+        .limit(limit);
+      if (recent.length >= limit || (recent[0] && recent[0].createdAt > new Date(now.getTime() - REQUEST_COOLDOWN_MS))) {
         return "rate_limited" as const;
       }
 

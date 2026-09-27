@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
       ? await sendBookingInvitation({ to: recipient.email, name: recipient.name, instructor: detail.instructorName, url })
       : "not_sent" as const;
     if (emailStatus !== "not_sent") await setRecipientEmailStatus(recipient.id, emailStatus);
-    if (emailStatus !== "not_sent" && emailStatus !== "sent") queueCritical("invitation_email_failed", "/api/v1/availability/[id]/release", recipient.id);
+    if (emailStatus !== "not_sent" && emailStatus !== "sent") queueCritical({ code: "invitation_email_failed", route: "/api/v1/availability/[id]/release", reference: recipient.id });
     return { name: recipient.name, email: recipient.email, url, emailStatus };
   }));
   queueActivity({ action: "availability_released", reference: released.releaseId, actor: auth.session });

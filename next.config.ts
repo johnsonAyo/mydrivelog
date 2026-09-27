@@ -13,8 +13,18 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@drivetrack/ui"],
 };
 
+// Sentry: the release is the short commit, matching the runtime SDKs and /api/v1/health.
+// Source maps upload only when the Sentry integration provides SENTRY_AUTH_TOKEN, SENTRY_ORG and SENTRY_PROJECT.
+const sentryUpload = Boolean(process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT);
+const release = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12);
+
 export default withSentryConfig(nextConfig, {
-  silent: !process.env.SENTRY_AUTH_TOKEN,
-  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !sentryUpload,
+  telemetry: false,
+  release: release ? { name: release, create: sentryUpload } : undefined,
+  sourcemaps: { disable: !sentryUpload, deleteSourcemapsAfterUpload: true },
   webpack: { treeshake: { removeDebugLogging: true } },
 });

@@ -1,18 +1,25 @@
 import type { ErrorEvent, Breadcrumb } from "@sentry/nextjs";
 
-const PRIVATE_PATH = /\/(?:book|availability|collections)\/[^/?#\s]+/gi;
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const LINK_TOKEN = /\b[A-Za-z0-9_-]{40,}\b/g;
+const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const TOKEN_SEGMENT = /^[A-Za-z0-9_-]{20,}$/;
 
 export function scrubMonitoringText(value: string): string {
-  return value.replace(EMAIL, "[email]").replace(LINK_TOKEN, "[token]")
-    .replace(PRIVATE_PATH, "/[private-link]").slice(0, 500);
+  return value.replace(EMAIL, "[email]").replace(LINK_TOKEN, "[token]").slice(0, 500);
 }
 
+/** Path only, with ids, booking-link tokens and addresses replaced, e.g. /book/availability/[token]. */
 export function safeMonitoringPath(value: string): string {
   try {
     const url = new URL(value, "https://mydrivelog.invalid");
-    return url.pathname.replace(PRIVATE_PATH, "/[private-link]");
+    return url.pathname.split("/").map((segment) => {
+      const decoded = decodeURIComponent(segment);
+      if (UUID_SEGMENT.test(decoded)) return "[id]";
+      if (decoded.includes("@")) return "[email]";
+      if (TOKEN_SEGMENT.test(decoded)) return "[token]";
+      return decoded.length > 60 ? "[redacted]" : segment;
+    }).join("/");
   } catch {
     return "[redacted]";
   }

@@ -1,0 +1,131 @@
+name: Launch journey
+
+# Runs the real sign-in → invitation → booking → email delivery journey against every staging and
+# production deployment, as the dedicated monitoring instructor only (never pilot data).
+# The result is posted as the commit status "Launch gate (<environment>)". Branch protection on main
+# requires "Launch gate (staging)", so merging staging into main (the production deploy) waits for it.
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which environment to check
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  # One run per environment at a time: runs share the test inbox and its 60s code cooldown.
+  group: launch-journey-${{ github.event.deployment.environment || inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  journey:
+    name: Launch journey
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Vercel reports several states per deployment. Only finished ones matter.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(fromJSON('["success","failure","error"]'), github.event.deployment_status.state)
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SHA: ${{ github.event.deployment.sha || github.sha }}
+      STATE: ${{ github.event.deployment_status.state || 'success' }}
+      VERCEL_ENVIRONMENT: ${{ github.event.deployment.environment }}
+      DEPLOYMENT_URL: ${{ github.event.deployment_status.environment_url }}
+      DISPATCH_TARGET: ${{ inputs.target }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      MONITORING_SECRET: ${{ secrets.MONITORING_SECRET }}
+      STAGING_URL: https://staging.mydrivelog.co.uk
+      PRODUCTION_URL: https://www.mydrivelog.co.uk
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Decide which environment this deployment is
+        id: target
+        run: |
+          set -euo pipefail
+          if [ -n "${DISPATCH_TARGET:-}" ]; then
+            target="$DISPATCH_TARGET"
+            if [ "$target" = production ]; then url="$PRODUCTION_URL"; else url="$STAGING_URL"; fi
+          else
+            url="$DEPLOYMENT_URL"
+            if [ "$VERCEL_ENVIRONMENT" = Production ]; then target=production
+            else
+              # A Preview deployment only counts when it is the staging build. The deployment reports
+              # its monitoring environment on /api/v1/health (feature-branch previews report "development").
+              reported=""
+              if [ "$STATE" = success ] && [ -n "$url" ]; then
+                reported=$(curl -fsS --max-time 20 -H "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}" "$url/api/v1/health" | jq -r '.environment // empty' || true)
+              fi
+              if [ "$reported" = staging ]; then target=staging
+              elif [ "$STATE" != success ] && gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/branches-where-head" --jq '.[].name' | grep -qx staging; then target=staging
+              else target=none; fi
+            fi
+          fi
+          if [ "$target" = production ]; then relay="$STAGING_URL"; else relay="$PRODUCTION_URL"; fi
+          { echo "target=$target"; echo "url=$url"; echo "relay=$relay"; } >> "$GITHUB_OUTPUT"
+          echo "Target: $target"
+
+      - name: Mark the gate as running
+        if: steps.target.outputs.target != 'none'
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=pending \
+            -f context="Launch gate (${{ steps.target.outputs.target }})" \
+            -f description="Journey check running" -f target_url="$RUN_URL" > /dev/null
+
+      - name: Fail when the deployment itself failed
+        if: steps.target.outputs.target != 'none' && env.STATE != 'success'
+        env:
+          TARGET: ${{ steps.target.outputs.target }}
+          RELAY: ${{ steps.target.outputs.relay }}
+        run: |
+          jq -n --arg state "$STATE" '{outcome:"failed",step:"deployment",message:("Vercel deployment " + $state)}' > journey-result.json
+          echo "❌ The ${TARGET} deployment finished as **${STATE}**, so the journey could not run." >> "$GITHUB_STEP_SUMMARY"
+          # The failed deployment cannot alert, so the other environment relays it to Telegram.
+          curl -fsS --max-time 20 -X POST "$RELAY/api/v1/monitoring/test-alert" \
+            -H "content-type: application/json" -H "origin: $RELAY" \
+            -H "x-monitoring-secret: $MONITORING_SECRET" -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+            -d "$(jq -n --arg about "$TARGET" --arg step "deployment: Vercel deployment $STATE" '{outcome:"failed",about:$about,step:$step}')" > /dev/null || true
+          exit 1
+
+      - name: Check out the deployed commit
+        if: steps.target.outputs.target != 'none' && env.STATE == 'success'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+          sparse-checkout: scripts
+          persist-credentials: false
+
+      - name: Set up Node
+        if: steps.target.outputs.target != 'none' && env.STATE == 'success'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run the journey
+        if: steps.target.outputs.target != 'none' && env.STATE == 'success'
+        env:
+          MONITORING_BASE_URL: ${{ steps.target.outputs.url }}
+          MONITORING_RELAY_URL: ${{ steps.target.outputs.relay }}
+          MONITORING_EXPECT_ENVIRONMENT: ${{ steps.target.outputs.target }}
+          MONITORING_EXPECT_RELEASE: ${{ github.event_name == 'deployment_status' && github.event.deployment.sha || '' }}
+          MONITORING_TEST_INSTRUCTOR_EMAIL: ${{ vars.MONITORING_TEST_INSTRUCTOR_EMAIL }}
+        run: node scripts/monitoring-journey.mjs
+
+      - name: Publish the gate result
+        if: always() && steps.target.outputs.target != 'none'
+        run: |
+          outcome=$(jq -r '.outcome // "failed"' journey-result.json 2>/dev/null || echo failed)
+          if [ "$outcome" = passed ]; then state=success; description="Sign-in, booking, email delivery and Telegram alert passed"
+          else
+            state=failure
+            description=$(jq -r '"Failed at \(.step): \(.message)"' journey-result.json 2>/dev/null || echo "Journey check did not finish")
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$state" \
+            -f context="Launch gate (${{ steps.target.outputs.target }})" \
+            -f description="${description:0:139}" -f target_url="$RUN_URL" > /dev/null

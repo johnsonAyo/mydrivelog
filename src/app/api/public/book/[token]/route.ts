@@ -35,8 +35,8 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
     timezone: publicView?.timezone ?? "Europe/London", url: `${process.env.APP_BASE_URL ?? request.nextUrl.origin}/book/${token}`,
   });
   await setBookingEmailStatus(claimed.id, emailStatus);
-  queueActivity({ action: "booking_confirmed", reference: claimed.id });
-  if (emailStatus !== "sent") queueCritical("booking_confirmation_email_failed", "/api/public/book/[token]", claimed.id);
+  queueActivity({ action: "booking_confirmed", reference: claimed.id, bookingId: claimed.id });
+  if (emailStatus !== "sent") queueCritical({ code: "booking_confirmation_email_failed", route: "/api/public/book/[token]", reference: claimed.id });
   return NextResponse.json({ data: { id: claimed.id, startsAt: claimed.startsAt, endsAt: claimed.endsAt, confirmationEmailStatus: emailStatus } },
     { status: 201, headers: { "Cache-Control": "private, no-store" } });
 }

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { getDatabase } from "@/infrastructure/database/client";
+import { queueCritical } from "@/infrastructure/monitoring/telegram";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +14,11 @@ export async function GET() {
       { status: "ready", dependencies: { database: "available" } },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch {
+  } catch (error) {
     const correlationId = randomUUID();
     console.error("Readiness check failed", { correlationId });
+    Sentry.captureException(error, { tags: { source: "readiness" } });
+    queueCritical({ code: "database_unavailable", route: "/api/v1/ready", status: 503 });
     return NextResponse.json(
       {
         status: "not_ready",

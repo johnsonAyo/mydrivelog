@@ -34,6 +34,6 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   const emailStatus = await sendBookingInvitation({ to: parsed.data.email, name: parsed.data.name, instructor: instructor?.name ?? "Your instructor", url });
   await setInvitationEmailStatus(result.id, emailStatus);
   queueActivity({ action: "learner_invitation_created", reference: result.id, actor: auth.session });
-  if (emailStatus !== "sent") queueCritical("invitation_email_failed", "/api/v1/collections/[id]/share", result.id);
+  if (emailStatus !== "sent") queueCritical({ code: "invitation_email_failed", route: "/api/v1/collections/[id]/share", reference: result.id });
   return NextResponse.json({ data: { id: result.id, url, emailStatus } }, { status: 201 });
 }

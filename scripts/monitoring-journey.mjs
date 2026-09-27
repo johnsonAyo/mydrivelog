@@ -1,83 +1,78 @@
 #!/usr/bin/env node
-// Runs only against the dedicated monitoring instructor. Do not point this at a pilot account.
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+// Launch journey check. Signs in as the dedicated monitoring instructor, invites a test learner,
+// books a lesson, confirms every email was delivered, cleans up, and sends a [TEST] Telegram result.
+// Delivery checks, the Firebase web key and the Telegram alert all go through the deployment's own
+// secret-protected /api/v1/monitoring endpoints, so CI only holds the monitoring and bypass secrets.
+// Never point this at a pilot account.
+//
+// Output is public (GitHub Actions on a public repo): print step names only. Never print codes,
+// tokens, email addresses or response bodies.
+import { appendFileSync, writeFileSync } from "node:fs";
 
-const baseUrl = process.env.MONITORING_BASE_URL;
-const instructorEmail = process.env.MONITORING_TEST_INSTRUCTOR_EMAIL;
-const brevoKey = process.env.MONITORING_BREVO_API_KEY ?? process.env.BREVO_API_KEY;
-const firebaseKey = process.env.MONITORING_FIREBASE_API_KEY ?? process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-const protectedDeployment = process.env.MONITORING_USE_VERCEL_CURL === "1";
+const env = (name) => process.env[name]?.trim() || undefined;
+const baseUrl = env("MONITORING_BASE_URL")?.replace(/\/$/, "");
+const expectEnvironment = env("MONITORING_EXPECT_ENVIRONMENT");
+const expectRelease = env("MONITORING_EXPECT_RELEASE")?.slice(0, 12);
+const instructorEmail = env("MONITORING_TEST_INSTRUCTOR_EMAIL")?.toLowerCase();
+const monitoringSecret = env("MONITORING_SECRET");
+const bypass = env("VERCEL_AUTOMATION_BYPASS_SECRET");
 const runId = Date.now().toString(36);
-const learnerEmail = process.env.MONITORING_TEST_LEARNER_EMAIL ?? instructorEmail?.replace("@", `+learner-${runId}@`);
-const pollDelayMs = 2_000;
+const learnerEmail = instructorEmail?.replace("@", `+learner-${runId}@`);
+// When the tested deployment cannot send its own failure alert, the other environment relays it.
+const relayUrl = env("MONITORING_RELAY_URL")?.replace(/\/$/, "");
+const EMAIL_TIMEOUT_MS = 180_000;
 
+let step = "configuration";
+let cookie;
+
+class JourneyError extends Error {}
 function ensure(condition, message) {
-  if (!condition) throw new Error(message);
+  if (!condition) throw new JourneyError(message);
 }
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const log = (message) => console.log(`${new Date().toISOString().slice(11, 19)} ${message}`);
 
-ensure(baseUrl && /^https:\/\//.test(baseUrl), "MONITORING_BASE_URL must be an HTTPS URL");
-ensure(instructorEmail && learnerEmail && brevoKey && firebaseKey, "Monitoring emails, Brevo API key, and Firebase API key are required");
-ensure(instructorEmail !== learnerEmail, "The test learner needs a distinct address");
+const monitoringHeaders = () => ({ "x-monitoring-secret": monitoringSecret });
 
-async function request(path, { method = "GET", body, cookie } = {}) {
-  if (!protectedDeployment) {
-    const response = await fetch(new URL(path, baseUrl), {
-      method, headers: { ...(body ? { "content-type": "application/json" } : {}), ...(cookie ? { cookie } : {}) },
-      body: body ? JSON.stringify(body) : undefined, redirect: "manual", signal: AbortSignal.timeout(30_000),
-    });
-    return { status: response.status, data: await response.json().catch(() => null), setCookie: response.headers.get("set-cookie") };
-  }
-  const directory = mkdtempSync(join(tmpdir(), "mydrivelog-journey-"));
-  try {
-    const headerFile = join(directory, "headers");
-    const bodyFile = join(directory, "body");
-    const args = ["--yes", "vercel@latest", "curl", path, "--deployment", baseUrl, "--", "--silent", "--show-error", "--dump-header", headerFile, "--output", bodyFile, "--request", method];
-    if (body) args.push("--header", "Content-Type: application/json", "--data", JSON.stringify(body));
-    if (cookie) args.push("--header", `Cookie: ${cookie}`);
-    const result = spawnSync("npx", args, { encoding: "utf8", timeout: 45_000, maxBuffer: 1024 * 1024 });
-    ensure(result.status === 0, `Protected deployment request failed at ${path}`);
-    const headers = readFileSync(headerFile, "utf8");
-    const responseText = readFileSync(bodyFile, "utf8");
-    const status = Number([...headers.matchAll(/^HTTP\/\S+\s+(\d+)/gm)].at(-1)?.[1]);
-    const setCookie = [...headers.matchAll(/^set-cookie:\s*(.+)$/gim)].at(-1)?.[1] ?? null;
-    return { status, data: JSON.parse(responseText || "null"), setCookie };
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-}
-
-async function brevo(path) {
-  const response = await fetch(`https://api.brevo.com/v3${path}`, {
-    headers: { "api-key": brevoKey, accept: "application/json" }, signal: AbortSignal.timeout(15_000),
+async function request(path, { method = "GET", body, headers = {}, base = baseUrl } = {}) {
+  const response = await fetch(`${base}${path}`, {
+    method,
+    redirect: "manual",
+    signal: AbortSignal.timeout(30_000),
+    headers: {
+      origin: base,
+      "user-agent": "mydrivelog-journey-check",
+      ...(bypass ? { "x-vercel-protection-bypass": bypass } : {}),
+      ...(body ? { "content-type": "application/json" } : {}),
+      ...(cookie ? { cookie } : {}),
+      ...headers,
+    },
+    body: body ? JSON.stringify(body) : undefined,
   });
-  ensure(response.ok, `Brevo delivery lookup failed (${response.status})`);
-  return response.json();
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { /* non-JSON body */ }
+  return { status: response.status, data, setCookie: response.headers.getSetCookie?.() ?? [] };
 }
 
-async function waitForEmail(address, after, subjectPattern, { contentPattern } = {}) {
-  const deadline = Date.now() + 90_000;
-  while (Date.now() < deadline) {
-    const list = await brevo(`/smtp/emails?email=${encodeURIComponent(address)}&limit=20`);
-    for (const item of list.transactionalEmails ?? []) {
-      if (new Date(item.date).getTime() < after - 30_000 || !subjectPattern.test(item.subject)) continue;
-      const detail = await brevo(`/smtp/emails/${encodeURIComponent(item.uuid)}`);
-      const events = detail.events ?? [];
-      const delivered = events.some((entry) => /deliver/i.test(entry.event ?? entry.type ?? ""));
-      if (!delivered) continue;
-      if (contentPattern && !contentPattern.test(`${detail.subject ?? ""}\n${detail.body ?? ""}`)) continue;
-      return detail;
-    }
-    await new Promise((resolve) => setTimeout(resolve, pollDelayMs));
-  }
-  throw new Error(`Timed out waiting for ${subjectPattern} delivery`);
-}
-
-function data(response, status, step) {
-  ensure(response.status === status, `${step} failed (HTTP ${response.status}, ${response.data?.error?.code ?? "unknown"})`);
+function expectStatus(response, status, what) {
+  ensure(response.status === status, `${what} returned HTTP ${response.status}${response.data?.code ? ` (${response.data.code})` : ""}`);
   return response.data?.data ?? response.data;
+}
+
+// Waits until the deployment's email provider reports the email as delivered to the inbox's mail server.
+async function waitForDelivery(kind, since, what, { run, linkToken } = {}) {
+  const deadline = Date.now() + EMAIL_TIMEOUT_MS;
+  let last = "none";
+  while (Date.now() < deadline) {
+    const lookup = await request("/api/v1/monitoring/email-delivery", { method: "POST", headers: monitoringHeaders(), body: { kind, run, since, linkToken } });
+    const result = expectStatus(lookup, 200, `${what} delivery lookup`);
+    last = result.status;
+    if (result.status === "failed") throw new JourneyError(`${what} email was not delivered (${result.events.join(", ")})`);
+    if (result.status === "delivered") return result;
+    await sleep(3_000);
+  }
+  throw new JourneyError(last === "none" ? `${what} email never reached the email provider within ${EMAIL_TIMEOUT_MS / 1000}s` : `${what} email was sent but not delivered within ${EMAIL_TIMEOUT_MS / 1000}s`);
 }
 
 function mondayWeeksAhead(weeks) {
@@ -87,86 +82,134 @@ function mondayWeeksAhead(weeks) {
   return monday.toISOString().slice(0, 10);
 }
 
-async function main() {
-  data(await request("/api/v1/ready"), 200, "Database readiness");
-  console.log("✓ Site and database ready");
+async function journey() {
+  ensure(baseUrl?.startsWith("https://"), "MONITORING_BASE_URL must be an HTTPS URL");
+  ensure(instructorEmail && monitoringSecret, "Journey configuration is incomplete (test instructor email, monitoring secret)");
 
-  const loginStarted = Date.now();
-  data(await request("/api/v1/auth/request", { method: "POST", body: { email: instructorEmail } }), 202, "Sign-in email request");
-  const signInEmail = await waitForEmail(instructorEmail, loginStarted, /^\d{6} is your MyDriveLog sign-in code$/);
-  const code = signInEmail.subject.match(/^(\d{6})/)?.[1];
-  ensure(code, "Delivered sign-in email did not contain a code");
-  const { customToken } = data(await request("/api/v1/auth/verify", { method: "POST", body: { email: instructorEmail, code } }), 200, "Sign-in code verification");
-  const firebaseResponse = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${encodeURIComponent(firebaseKey)}`, {
-    method: "POST", headers: { "content-type": "application/json" },
+  step = "deployment health";
+  const health = expectStatus(await request("/api/v1/health"), 200, "Health check");
+  if (expectEnvironment) ensure(health.environment === expectEnvironment, `Deployment reports environment "${health.environment}", expected "${expectEnvironment}"`);
+  if (expectRelease) ensure(health.release === expectRelease, `Deployment runs ${health.release}, expected ${expectRelease}`);
+  step = "database readiness";
+  expectStatus(await request("/api/v1/ready"), 200, "Database readiness");
+  log("✓ Deployment healthy and database ready");
+
+  step = "sign-in code email";
+  let signInStarted = Date.now();
+  let codeRequest = await request("/api/v1/auth/request", { method: "POST", body: { email: instructorEmail } });
+  if (codeRequest.status === 429) { // Another run asked for a code in the last minute.
+    log("… sign-in code cooldown, retrying in 65s");
+    await sleep(65_000);
+    signInStarted = Date.now();
+    codeRequest = await request("/api/v1/auth/request", { method: "POST", body: { email: instructorEmail } });
+  }
+  expectStatus(codeRequest, 202, "Sign-in code request");
+  const { code } = await waitForDelivery("sign_in", signInStarted, "Sign-in code");
+  ensure(code, "Delivered sign-in email had no code");
+  step = "sign-in code verification";
+  const { customToken } = expectStatus(await request("/api/v1/auth/verify", { method: "POST", body: { email: instructorEmail, code } }), 200, "Sign-in code verification");
+  step = "Firebase sign-in";
+  const { firebaseApiKey: firebaseKey } = expectStatus(await request("/api/v1/monitoring/client-config", { headers: monitoringHeaders() }), 200, "Monitoring client config");
+  ensure(firebaseKey, "The deployment has no Firebase web API key");
+  const firebase = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${encodeURIComponent(firebaseKey)}`, {
+    method: "POST", headers: { "content-type": "application/json", referer: `${baseUrl}/` },
     body: JSON.stringify({ token: customToken, returnSecureToken: true }), signal: AbortSignal.timeout(20_000),
   });
-  ensure(firebaseResponse.ok, `Firebase sign-in failed (${firebaseResponse.status})`);
-  const { idToken } = await firebaseResponse.json();
+  ensure(firebase.ok, `Firebase custom-token sign-in returned HTTP ${firebase.status}`);
+  const { idToken } = await firebase.json();
+  step = "workspace session";
   const session = await request("/api/v1/auth/session", { method: "POST", body: { idToken } });
-  data(session, 200, "Workspace session");
-  const cookie = session.setCookie?.split(";")[0];
+  expectStatus(session, 200, "Workspace session");
+  cookie = session.setCookie.map((value) => value.split(";")[0]).find((value) => /session/i.test(value.split("=")[0]));
   ensure(cookie, "Workspace session cookie missing");
-  if (session.data?.next === "/onboarding") data(await request("/api/v1/auth/onboarding", { method: "POST", body: { firstName: "Monitor" }, cookie }), 200, "Test instructor onboarding");
-  console.log("✓ Sign-in code delivered; instructor session established");
-
-  const collections = data(await request("/api/v1/collections", { cookie }), 200, "Test workspace read");
-  const occupiedWeeks = new Set(collections.collections.map((item) => item.weekStart));
-  let weekStart;
-  for (let weeks = 3; weeks < 160; weeks++) {
-    const candidate = mondayWeeksAhead(weeks);
-    if (!occupiedWeeks.has(candidate)) { weekStart = candidate; break; }
+  if (session.data?.next === "/onboarding") {
+    step = "test instructor onboarding";
+    expectStatus(await request("/api/v1/auth/onboarding", { method: "POST", body: { firstName: "Monitor" } }), 200, "Test instructor onboarding");
   }
-  ensure(weekStart, "No unused test week is available");
-  const week = data(await request("/api/v1/collections", { method: "POST", body: { weekStart }, cookie }), 201, "Test week creation");
-  const startsAt = new Date(`${weekStart}T12:00:00.000Z`);
+  log("✓ Signed in with a delivered code");
+
+  step = "clear previous test records";
+  expectStatus(await request("/api/v1/monitoring/cleanup", { method: "POST", headers: monitoringHeaders() }), 200, "Pre-run cleanup");
+
+  step = "create test week";
+  const weekStart = mondayWeeksAhead(3);
+  const week = expectStatus(await request("/api/v1/collections", { method: "POST", body: { weekStart } }), 201, "Test week creation");
+  step = "add test lesson time";
+  const startsAt = new Date(`${weekStart}T10:00:00.000Z`);
   startsAt.setUTCDate(startsAt.getUTCDate() + 1);
   const endsAt = new Date(startsAt.getTime() + 60 * 60_000);
-  const slot = data(await request(`/api/v1/collections/${week.id}/slots`, {
-    method: "POST", cookie, body: { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), makeAvailable: true },
-  }), 201, "Test lesson time creation");
-  const invitationStarted = Date.now();
-  const invitation = data(await request(`/api/v1/collections/${week.id}/share`, {
-    method: "POST", cookie, body: { kind: "invite", name: "Monitoring Learner", email: learnerEmail },
+  const slot = expectStatus(await request(`/api/v1/collections/${week.id}/slots`, {
+    method: "POST", body: { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), makeAvailable: true },
+  }), 201, "Test lesson time");
+  log("✓ Test week and lesson time created");
+
+  step = "invite test learner";
+  const invitedAt = Date.now();
+  const invitation = expectStatus(await request(`/api/v1/collections/${week.id}/share`, {
+    method: "POST", body: { kind: "invite", name: "Monitoring Learner", email: learnerEmail },
   }), 201, "Test invitation");
-  ensure(invitation.emailStatus === "sent", "Invitation was not accepted by the email provider");
-  const invitationEmail = await waitForEmail(learnerEmail, invitationStarted, /lesson|booking|invitation/i, { contentPattern: /book\/availability\//i });
+  ensure(invitation.emailStatus === "sent", `Invitation email status was "${invitation.emailStatus}"`);
   const token = new URL(invitation.url).pathname.split("/").at(-1);
-  ensure(invitationEmail.body.includes(token), "Delivered invitation did not contain its booking link");
-  const publicCollection = data(await request(`/api/public/collections/${token}`), 200, "Public booking page");
-  ensure(publicCollection.slots.some((item) => item.id === slot.id), "Test slot was not offered to the learner");
-  console.log("✓ Test invitation delivered and booking slot visible");
+  step = "invitation email";
+  const invitationEmail = await waitForDelivery("invitation", invitedAt, "Invitation", { run: runId, linkToken: token });
+  ensure(invitationEmail.containsLink !== false, "Delivered invitation did not contain its booking link");
+  step = "public booking page";
+  const offered = expectStatus(await request(`/api/public/collections/${token}`), 200, "Public booking page");
+  ensure(offered.slots?.some((item) => item.id === slot.id), "The test lesson time was not offered to the learner");
+  log("✓ Invitation delivered and the lesson time is bookable");
 
-  const bookingStarted = Date.now();
-  const booking = data(await request(`/api/public/collections/${token}`, {
-    method: "POST", body: { action: "claim", slotId: slot.id },
-  }), 201, "Test booking");
-  ensure(booking.confirmationEmailStatus === "sent", "Booking email was not accepted by the email provider");
-  await waitForEmail(learnerEmail, bookingStarted, /book|lesson|confirm/i);
-  await waitForEmail(instructorEmail, bookingStarted, /Lesson booked by/i);
-  console.log("✓ Booking confirmed; learner and instructor emails delivered");
+  step = "book test lesson";
+  const bookedAt = Date.now();
+  const booking = expectStatus(await request(`/api/public/collections/${token}`, { method: "POST", body: { action: "claim", slotId: slot.id } }), 201, "Test booking");
+  ensure(booking.confirmationEmailStatus === "sent", `Booking confirmation email status was "${booking.confirmationEmailStatus}"`);
+  step = "booking confirmation email";
+  await waitForDelivery("learner_booking", bookedAt, "Learner booking confirmation", { run: runId });
+  step = "instructor booking email";
+  await waitForDelivery("instructor_booking", bookedAt, "Instructor booking notification");
+  log("✓ Lesson booked; learner and instructor emails delivered");
 
-  const cleanup = data(await request("/api/v1/monitoring/cleanup", {
-    method: "POST", cookie, body: { collectionId: week.id, bookingId: booking.id },
-  }), 200, "Test record cleanup");
-  ensure(cleanup.deleted === true, "Test records were not cleaned up");
-  console.log("✓ Isolated test records removed");
+  step = "cleanup";
+  const cleanup = expectStatus(await request("/api/v1/monitoring/cleanup", { method: "POST", headers: monitoringHeaders() }), 200, "Test record cleanup");
+  ensure(cleanup.deleted === true && cleanup.counts?.bookings >= 1, "Test records were not cleaned up");
+  log("✓ Test records removed");
 
-  if (process.env.MONITORING_TELEGRAM_BOT_TOKEN && process.env.MONITORING_TELEGRAM_CHAT_ID) {
-    const response = await fetch(`https://api.telegram.org/bot${process.env.MONITORING_TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: process.env.MONITORING_TELEGRAM_CHAT_ID,
-        text: `✅ MyDriveLog [${process.env.MONITORING_ENVIRONMENT ?? "staging"}] [TEST]\nDeployment journey passed: sign-in, invitation, booking, email delivery, cleanup.` }),
-      signal: AbortSignal.timeout(10_000),
-    });
-    ensure(response.ok, `Telegram test alert failed (${response.status})`);
-    console.log("✓ Telegram test alert delivered");
-  } else {
-    throw new Error("Telegram credentials are required to verify alert delivery");
-  }
+  step = "Telegram test alert";
+  const alert = expectStatus(await request("/api/v1/monitoring/test-alert", {
+    method: "POST", headers: monitoringHeaders(), body: { outcome: "passed" },
+  }), 200, "Telegram test alert");
+  ensure(alert.sent === true, "The deployment did not send the Telegram test alert");
+  log("✓ Telegram [TEST] alert sent by the deployment");
 }
 
-main().catch((error) => {
-  console.error(`Launch journey failed: ${error.message}`);
+async function reportFailure(message) {
+  if (!monitoringSecret) return;
+  if (cookie) await request("/api/v1/monitoring/cleanup", { method: "POST", headers: monitoringHeaders() }).catch(() => undefined);
+  const body = { outcome: "failed", step: `${step}: ${message}`, about: expectEnvironment };
+  const sentBy = async (base) => {
+    const response = await request("/api/v1/monitoring/test-alert", { method: "POST", headers: monitoringHeaders(), body, base }).catch(() => null);
+    return response?.status === 200 && response.data?.data?.sent === true;
+  };
+  if (await sentBy(baseUrl)) return log("Failure alert sent by the deployment");
+  if (relayUrl && await sentBy(relayUrl)) return log("Failure alert relayed by the other environment");
+  console.error("Could not send the failure alert to Telegram");
+}
+
+function writeResult(outcome, message) {
+  const summary = outcome === "passed"
+    ? `✅ Journey check passed on ${baseUrl}`
+    : `❌ Journey check failed at **${step}**: ${message}`;
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${summary}\n`);
+  writeFileSync("journey-result.json", JSON.stringify({ outcome, step, message: message ?? null }));
+}
+
+try {
+  await journey();
+  writeResult("passed");
+  log("Journey check passed");
+} catch (error) {
+  const message = error instanceof JourneyError ? error.message : `Unexpected error: ${error?.name ?? "Error"}`;
+  console.error(`Journey check failed at ${step}: ${message}`);
+  writeResult("failed", message);
+  await reportFailure(message);
   process.exitCode = 1;
-});
+}

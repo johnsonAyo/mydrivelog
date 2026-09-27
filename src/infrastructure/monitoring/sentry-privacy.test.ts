@@ -17,10 +17,13 @@ describe("monitoring privacy", () => {
     expect(serialized).not.toContain(token);
     expect(serialized).not.toContain("private lesson note");
     expect(serialized).not.toContain('"note":"private"');
-    expect(event.request?.url).toBe("/[private-link]");
+    expect(event.request?.url).toBe("/book/[token]");
   });
 
-  it("strips query strings from monitoring paths", () => {
+  it("strips query strings, ids, tokens and addresses from monitoring paths", () => {
     expect(safeMonitoringPath("/api/v1/ready?code=123456")).toBe("/api/v1/ready");
+    expect(safeMonitoringPath(`/book/availability/${"x".repeat(48)}`)).toBe("/book/availability/[token]");
+    expect(safeMonitoringPath("/api/v1/collections/33333333-3333-4333-8333-333333333333/slots")).toBe("/api/v1/collections/[id]/slots");
+    expect(safeMonitoringPath("/learners/a%40b.co")).toBe("/learners/[email]");
   });
 });

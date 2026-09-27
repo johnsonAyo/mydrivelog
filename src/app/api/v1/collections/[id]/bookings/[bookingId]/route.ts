@@ -25,7 +25,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const result = await changeCollectionBooking({ collectionId: id, bookingId, actor: { kind: "instructor", workspaceId: auth.session.workspaceId }, action: parsed.data.action, targetSlotId: parsed.data.action === "reschedule" ? parsed.data.slotId : undefined });
   if (!result.ok) return problem(result.reason === "not_found" ? 404 : 409, result.reason, "This booking or replacement time is no longer available");
   const emailStatus = await notifyBookingChange(result);
-  queueActivity({ action: `booking_${result.action}`, reference: bookingId, actor: auth.session });
-  if (emailStatus.learner !== "sent" || emailStatus.instructor !== "sent") queueCritical("booking_change_email_failed", "/api/v1/collections/[id]/bookings/[bookingId]", bookingId);
+  queueActivity({ action: `booking_${result.action}_by_instructor`, reference: bookingId, actor: auth.session });
+  if (emailStatus.learner !== "sent" || emailStatus.instructor !== "sent") queueCritical({ code: "booking_change_email_failed", route: "/api/v1/collections/[id]/bookings/[bookingId]", reference: bookingId });
   return NextResponse.json({ data: { action: result.action, emailStatus } });
 }
