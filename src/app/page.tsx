@@ -113,7 +113,7 @@ export default function Home() {
       <footer className="site-footer">
         <div className="shell footer-inner">
           <Wordmark />
-          <div><Link href="#product">Product</Link><Link href="#faq">FAQ</Link><Link href="mailto:hello@mydrivelog.co.uk">Contact</Link></div>
+          <div><Link href="#product">Product</Link><Link href="#faq">FAQ</Link><Link href="/privacy">Privacy</Link><Link href="mailto:hello@mydrivelog.co.uk">Contact</Link></div>
         </div>
       </footer>
     </main>
