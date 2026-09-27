@@ -5,6 +5,7 @@ import { Wordmark } from "@/components/brand-mark";
 const footerLinks = [
   { href: "#product", label: "Product" },
   { href: "#faq", label: "FAQ" },
+  { href: "/privacy", label: "Privacy" },
   { href: "mailto:hello@mydrivelog.co.uk", label: "Contact" },
 ];
 
@@ -21,7 +22,7 @@ export function SiteFooter({ mode = "landing" }: { mode?: "landing" | "standalon
         </Link>
         <div>
           {footerLinks.map((link) => (
-            <Link href={mode === "landing" || link.href.startsWith("mailto:") ? link.href : `/${link.href}`} key={link.label}>
+            <Link href={mode === "standalone" && link.href.startsWith("#") ? `/${link.href}` : link.href} key={link.label}>
               {link.label}
             </Link>
           ))}
