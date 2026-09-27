@@ -25,5 +25,5 @@ export function InstructorSignOut() {
     }
   }
 
-  return <Button type="button" variant="outline" size="2" disabled={busy} onClick={leave}>{busy ? "Signing out…" : "Sign out"}</Button>;
+  return <Button type="button" variant="outline" size="2" loading={busy} onClick={leave}>Sign out</Button>;
 }

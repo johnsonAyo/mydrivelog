@@ -29,7 +29,7 @@ export function InstructorOnboarding() {
     <Text variant="muted">Add your first name to set up your instructor workspace.</Text>
     <form data-dt="access-form" onSubmit={submit}>
       <Field id="instructor-first-name" name="fullName" label="First name" type="text" autoComplete="given-name" minLength={1} maxLength={100} required placeholder="Your first name" />
-      <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Open my workspace"}</Button>
+      <Button type="submit" loading={busy}>Open my workspace</Button>
     </form>
   </section>;
 }

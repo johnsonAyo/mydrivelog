@@ -53,7 +53,7 @@ export async function createCollection(workspaceId: string, weekStart: string) {
   const [row] = created ? [created] : await client<CollectionRow[]>`
     select * from availability_collections where workspace_id = ${workspaceId} and week_start = ${weekStart}
   `;
-  return { id: row.id, name: row.name, weekStart: row.week_start, status: row.status };
+  return { id: row.id, name: row.name, weekStart: row.week_start, status: row.status, created: Boolean(created) };
 }
 
 export async function getCollection(workspaceId: string, id: string) {
@@ -127,16 +127,18 @@ export async function saveSlot(workspaceId: string, collectionId: string, input:
     const warning = nearbyGapWarning(input, others.map((slot) => ({ startsAt: new Date(slot.starts_at), endsAt: new Date(slot.ends_at) })), settings.buffer_warning_minutes);
     const status = collection.status === "live" && input.makeAvailable ? "open" : "private";
     let rows: SlotRow[];
+    let changed = true;
     if (input.id) {
       const [existing] = await sql<SlotRow[]>`select * from collection_slots where id = ${input.id} and collection_id = ${collectionId} for update`;
       if (!existing) return { ok: false as const, reason: "not_found" as const };
       if (existing.status === "booked") return { ok: false as const, reason: "booked" as const };
-      rows = await sql<SlotRow[]>`update collection_slots set starts_at = ${input.startsAt.toISOString()}, ends_at = ${input.endsAt.toISOString()}, updated_at = now() where id = ${input.id} returning *`;
+      changed = iso(existing.starts_at) !== input.startsAt.toISOString() || iso(existing.ends_at) !== input.endsAt.toISOString();
+      rows = changed ? await sql<SlotRow[]>`update collection_slots set starts_at = ${input.startsAt.toISOString()}, ends_at = ${input.endsAt.toISOString()}, updated_at = now() where id = ${input.id} returning *` : [existing];
     } else {
       rows = await sql<SlotRow[]>`insert into collection_slots (collection_id, starts_at, ends_at, status) values (${collectionId}, ${input.startsAt.toISOString()}, ${input.endsAt.toISOString()}, ${status}) returning *`;
     }
-    await sql`update availability_collections set updated_at = now() where id = ${collectionId}`;
-    return { ok: true as const, slot: { id: rows[0].id, startsAt: iso(rows[0].starts_at), endsAt: iso(rows[0].ends_at), status: rows[0].status }, warning };
+    if (changed) await sql`update availability_collections set updated_at = now() where id = ${collectionId}`;
+    return { ok: true as const, slot: { id: rows[0].id, startsAt: iso(rows[0].starts_at), endsAt: iso(rows[0].ends_at), status: rows[0].status }, warning, changed };
   });
 }
 
@@ -144,9 +146,12 @@ export async function setSlotStatus(workspaceId: string, collectionId: string, s
   const { client } = getDatabase();
   return client.begin(async (sql) => {
     const [collection] = await sql<CollectionRow[]>`select * from availability_collections where id = ${collectionId} and workspace_id = ${workspaceId} for update`;
-    if (!collection || (status === "open" && collection.status !== "live")) return false;
-    const rows = await sql<{ id: string }[]>`update collection_slots set status = ${status}, updated_at = now() where id = ${slotId} and collection_id = ${collectionId} and status <> 'booked' returning id`;
-    return rows.length > 0;
+    if (!collection || (status === "open" && collection.status !== "live")) return { ok: false as const };
+    const [slot] = await sql<SlotRow[]>`select * from collection_slots where id = ${slotId} and collection_id = ${collectionId} for update`;
+    if (!slot || slot.status === "booked") return { ok: false as const };
+    if (slot.status === status) return { ok: true as const, changed: false };
+    await sql`update collection_slots set status = ${status}, updated_at = now() where id = ${slotId}`;
+    return { ok: true as const, changed: true };
   });
 }
 
@@ -214,12 +219,12 @@ export async function createGeneralLink(workspaceId: string, collectionId: strin
     `;
     if (!available.count) return { ok: false as const, reason: "empty" as const };
     const [existing] = await sql<{ token: string }[]>`select token from collection_general_links where collection_id = ${collectionId}`;
-    if (existing) return { ok: true as const, token: existing.token };
+    if (existing) return { ok: true as const, token: existing.token, created: false };
     const token = newToken();
     await sql`insert into collection_general_links (collection_id, token, token_hash) values (${collectionId}, ${token}, ${hash(token)})`;
     await sql`update availability_collections set status = 'live', updated_at = now() where id = ${collectionId}`;
     if (collection.status === "draft") await sql`update collection_slots set status = 'open', updated_at = now() where collection_id = ${collectionId} and status = 'private'`;
-    return { ok: true as const, token };
+    return { ok: true as const, token, created: true };
   });
 }
 

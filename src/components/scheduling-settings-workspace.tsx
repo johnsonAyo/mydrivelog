@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { EmptyState, SchedulingSettingsForm, toast, type SchedulingSettings } from "@drivetrack/ui";
+import { EmptyState, SchedulingSettingsForm, SchedulingSettingsSkeleton, toast, type SchedulingSettings } from "@drivetrack/ui";
 import { requestJson, toastError } from "./api-request";
 
 type EditableSchedulingSettings = Pick<SchedulingSettings, "defaultSessionMinutes" | "bufferWarningMinutes" | "weeklyBookingAllowance" | "minimumBookingNoticeHours" | "contactPhone">;
@@ -26,6 +26,6 @@ export function SchedulingSettingsWorkspace() {
     }
   }
   if (error) return <EmptyState title="Settings unavailable" description="Refresh this page and try again." />;
-  if (!settings) return <p>Loading scheduling settings…</p>;
+  if (!settings) return <SchedulingSettingsSkeleton />;
   return <SchedulingSettingsForm settings={settings} onSave={save} />;
 }

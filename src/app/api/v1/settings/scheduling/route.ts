@@ -8,6 +8,7 @@ import { problem } from "@/presentation/http/problem";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 import { getDatabase } from "@/infrastructure/database/client";
 import { workspaces } from "@/infrastructure/database/schema";
+import { queueActivity } from "@/infrastructure/monitoring/telegram";
 
 const settingsSchema = z.object({
   defaultSessionMinutes: z.union([z.literal(30), z.literal(45), z.literal(60), z.literal(90), z.literal(120), z.literal(150), z.literal(180), z.literal(240)]),
@@ -41,6 +42,16 @@ export async function PATCH(request: NextRequest) {
   const parsed = settingsSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return problem(400, "invalid_settings", "Choose valid booking rules");
   const { db } = getDatabase();
+  const [current] = await db.select({
+    defaultSessionMinutes: workspaces.defaultSessionMinutes,
+    bufferWarningMinutes: workspaces.bufferWarningMinutes,
+    weeklyBookingAllowance: workspaces.weeklyBookingAllowance,
+    minimumBookingNoticeHours: workspaces.minimumBookingNoticeHours,
+    contactPhone: workspaces.contactPhone,
+  }).from(workspaces).where(eq(workspaces.id, auth.session.workspaceId)).limit(1);
+  if (!current) return problem(404, "not_found", "Workspace not found");
+  const changed = Object.entries(parsed.data).some(([key, value]) => current[key as keyof typeof current] !== value);
+  if (!changed) return GET(request);
   const [workspace] = await db.update(workspaces).set({ ...parsed.data, updatedAt: new Date() })
     .where(eq(workspaces.id, auth.session.workspaceId)).returning({
       name: workspaces.name,
@@ -51,5 +62,6 @@ export async function PATCH(request: NextRequest) {
       minimumBookingNoticeHours: workspaces.minimumBookingNoticeHours,
       contactPhone: workspaces.contactPhone,
     });
+  queueActivity({ action: "scheduling_settings_edited", reference: auth.session.workspaceId, actor: auth.session });
   return NextResponse.json({ data: workspace }, { headers: { "Cache-Control": "private, no-store" } });
 }

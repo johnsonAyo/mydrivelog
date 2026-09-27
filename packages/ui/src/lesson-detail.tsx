@@ -1,4 +1,7 @@
-import { Badge, Button, Heading, Text } from "./primitives";
+"use client";
+
+import { Badge, Button, Heading, LoadingRegion, Skeleton, Spinner, Stack, Text } from "./primitives";
+import { usePendingAction } from "./pending-action";
 
 export type LessonSkill = { skill: string; outcome: "introduced" | "developing" | "confident" };
 export type LessonFields = {
@@ -28,6 +31,8 @@ export function LessonDetail({ lesson, fields, saveStatus, error, busy, writable
   const ended = new Date(lesson.endsAt) <= new Date();
   const recapSent = lesson.messages.some((message) => message.kind === "recap");
   const disabled = !writable || lesson.state === "cancelled";
+  const pending = usePendingAction(busy);
+  const act = (key: string, action: () => void) => () => { pending.start(key); action(); };
   const lessonTime = new Intl.DateTimeFormat("en-GB", { dateStyle: "full", timeStyle: "short", timeZone: "Europe/London" });
   return <div data-dt="lesson-detail">
     <section data-dt="lesson-panel">
@@ -54,17 +59,24 @@ export function LessonDetail({ lesson, fields, saveStatus, error, busy, writable
             <Button type="button" variant="ghost" size="2" disabled={disabled} onClick={() => onRemoveSkill(index)}>Remove</Button></div>)}
           <Button type="button" variant="surface" size="2" disabled={disabled || fields.skills.length >= 30} onClick={onAddSkill}>Add skill</Button>
         </div>
-        <div data-dt="lesson-save-state" role="status" aria-live="polite">{saveStatus}{error && <><span role="alert"> {error}</span> <Button type="button" variant="ghost" size="2" onClick={onRetrySave}>Retry save</Button></>}</div>
+        <div data-dt="lesson-save-state" role="status" aria-live="polite">{saveStatus === "Saving…" && <Spinner size="1" label="Saving" />}{saveStatus}{error && <><span role="alert"> {error}</span> <Button type="button" variant="ghost" size="2" onClick={onRetrySave}>Retry save</Button></>}</div>
       </div>
     </section>
     <section data-dt="lesson-panel"><div data-dt="lesson-panel-header"><Heading as="h2" size="panel">Finish and share</Heading></div><div data-dt="lesson-panel-body">
-      {!lesson.draft.completedAt && <Button type="button" disabled={disabled || busy || !ended} onClick={onComplete}>Complete lesson</Button>}
+      {!lesson.draft.completedAt && <Button type="button" disabled={disabled || busy || !ended} loading={pending.is("complete")} onClick={act("complete", onComplete)}>Complete lesson</Button>}
       {!ended && <Text variant="muted">Completion and learner messages become available after the booked end time.</Text>}
-      {ended && !recapSent && <Button type="button" variant="surface" disabled={disabled || busy} onClick={() => onPreview("recap")}>Review learner recap</Button>}
+      {ended && !recapSent && <Button type="button" variant="surface" disabled={disabled || busy} loading={pending.is("recap")} onClick={act("recap", () => onPreview("recap"))}>Review learner recap</Button>}
       {recapSent && <><label htmlFor="lesson-correction">Follow-up correction</label><textarea id="lesson-correction" rows={3} value={correction} maxLength={5000} disabled={disabled} onChange={(event) => onCorrectionChange(event.target.value)} />
-        <Button type="button" variant="surface" disabled={disabled || busy || !correction.trim()} onClick={() => onPreview("follow_up")}>Review follow-up</Button></>}
-      {preview && <div data-dt="lesson-preview"><Heading as="h3" size="small">Review exact email</Heading><p><strong>To:</strong> {preview.recipientEmail}</p><p><strong>Subject:</strong> {preview.subject}</p><pre>{preview.body}</pre><Button type="button" disabled={disabled || busy} onClick={onSend}>Approve and send</Button></div>}
-      {lesson.messages.length > 0 && <div data-dt="lesson-messages"><Heading as="h3" size="small">Message history</Heading>{lesson.messages.map((message) => <article key={message.id}><p><strong>{message.kind === "recap" ? "Learner recap" : "Follow-up"}</strong> · {message.status.replaceAll("_", " ")}</p><p>To: {message.recipientEmail}</p><p>Subject: {message.subject}</p><pre>{message.body}</pre>{(message.status === "needs_attention" || message.status === "sending") && <><Text variant="muted">{message.status === "sending" ? "Delivery is still processing. If it stays here, check the learner’s inbox before retrying. Retry becomes available after five minutes." : "Delivery needs attention. The approved message is saved."}</Text><Button type="button" variant="surface" disabled={disabled || busy} onClick={() => onRetry(message.id)}>Retry this message</Button></>}</article>)}</div>}
+        <Button type="button" variant="surface" disabled={disabled || busy || !correction.trim()} loading={pending.is("follow_up")} onClick={act("follow_up", () => onPreview("follow_up"))}>Review follow-up</Button></>}
+      {preview && <div data-dt="lesson-preview"><Heading as="h3" size="small">Review exact email</Heading><p><strong>To:</strong> {preview.recipientEmail}</p><p><strong>Subject:</strong> {preview.subject}</p><pre>{preview.body}</pre><Button type="button" disabled={disabled || busy} loading={pending.is("send")} onClick={act("send", onSend)}>Approve and send</Button></div>}
+      {lesson.messages.length > 0 && <div data-dt="lesson-messages"><Heading as="h3" size="small">Message history</Heading>{lesson.messages.map((message) => <article key={message.id}><p><strong>{message.kind === "recap" ? "Learner recap" : "Follow-up"}</strong> · {message.status.replaceAll("_", " ")}</p><p>To: {message.recipientEmail}</p><p>Subject: {message.subject}</p><pre>{message.body}</pre>{(message.status === "needs_attention" || message.status === "sending") && <><Text variant="muted">{message.status === "sending" ? "Delivery is still processing. If it stays here, check the learner’s inbox before retrying. Retry becomes available after five minutes." : "Delivery needs attention. The approved message is saved."}</Text><Button type="button" variant="surface" disabled={disabled || busy} loading={pending.is(`retry:${message.id}`)} onClick={act(`retry:${message.id}`, () => onRetry(message.id))}>Retry this message</Button></>}</article>)}</div>}
     </div></section>
   </div>;
+}
+
+export function LessonDetailSkeleton() {
+  return <LoadingRegion label="Loading lesson"><div data-dt="lesson-detail">
+    <section data-dt="lesson-panel"><div data-dt="lesson-panel-header"><Stack gap="2"><Skeleton width="quarter" /><Skeleton shape="heading" width="third" /><Skeleton width="half" /></Stack></div></section>
+    <section data-dt="lesson-panel"><div data-dt="lesson-panel-header"><Stack gap="3"><Skeleton shape="heading" width="quarter" /><Skeleton shape="block" /><Skeleton shape="block" /></Stack></div></section>
+  </div></LoadingRegion>;
 }

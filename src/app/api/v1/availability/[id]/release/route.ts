@@ -5,6 +5,7 @@ import { canWriteWorkspace } from "@/application/auth/can-write-workspace";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 import { sendBookingInvitation } from "@/infrastructure/booking/booking-email";
 import { getWindowDetail, releaseWindow, setRecipientEmailStatus } from "@/infrastructure/booking/postgres-booking-repository";
+import { queueActivity, queueCritical } from "@/infrastructure/monitoring/telegram";
 import { authenticateRequest } from "@/presentation/http/authenticate-request";
 import { problem } from "@/presentation/http/problem";
 
@@ -33,8 +34,10 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
       ? await sendBookingInvitation({ to: recipient.email, name: recipient.name, instructor: detail.instructorName, url })
       : "not_sent" as const;
     if (emailStatus !== "not_sent") await setRecipientEmailStatus(recipient.id, emailStatus);
+    if (emailStatus !== "not_sent" && emailStatus !== "sent") queueCritical({ code: "invitation_email_failed", route: "/api/v1/availability/[id]/release", reference: recipient.id });
     return { name: recipient.name, email: recipient.email, url, emailStatus };
   }));
+  queueActivity({ action: "availability_released", reference: released.releaseId, actor: auth.session });
   return NextResponse.json({ data: { id: released.releaseId, expiresAt: released.expiresAt, links } },
     { status: 201, headers: { "Cache-Control": "private, no-store" } });
 }

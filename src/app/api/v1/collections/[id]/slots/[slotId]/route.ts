@@ -4,6 +4,7 @@ import { z } from "zod";
 import { canWriteWorkspace } from "@/application/auth/can-write-workspace";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 import { saveSlot, setSlotStatus } from "@/infrastructure/collections/postgres-collection-repository";
+import { queueActivity } from "@/infrastructure/monitoring/telegram";
 import { authenticateRequest } from "@/presentation/http/authenticate-request";
 import { exactSlotSchema } from "@/presentation/http/collection-validation";
 import { problem } from "@/presentation/http/problem";
@@ -19,7 +20,9 @@ export async function PATCH(request: NextRequest, { params }: RouteContext<"/api
   const body: unknown = await request.json().catch(() => null);
   const status = statusSchema.safeParse(body);
   if (status.success) {
-    if (!await setSlotStatus(auth.session.workspaceId, id, slotId, status.data.status)) return problem(409, "not_editable", "Booked times cannot be changed here");
+    const update = await setSlotStatus(auth.session.workspaceId, id, slotId, status.data.status);
+    if (!update.ok) return problem(409, "not_editable", "Booked times cannot be changed here");
+    if (update.changed) queueActivity({ action: `lesson_time_${status.data.status}`, reference: slotId, actor: auth.session });
     return NextResponse.json({ data: { id: slotId, status: status.data.status } });
   }
   const parsed = exactSlotSchema.safeParse(body);
@@ -27,5 +30,6 @@ export async function PATCH(request: NextRequest, { params }: RouteContext<"/api
   const result = await saveSlot(auth.session.workspaceId, id, { id: slotId, startsAt: new Date(parsed.data.startsAt), endsAt: new Date(parsed.data.endsAt), makeAvailable: parsed.data.makeAvailable });
   if (!result.ok) return problem(result.reason === "not_found" ? 404 : 409, result.reason,
     result.reason === "booked" ? "A booked lesson needs a separate reschedule or cancellation" : result.reason === "overlap" ? "This lesson overlaps another time in the collection" : result.reason === "outside_week" ? "Choose a lesson time inside this week" : "Lesson time not found");
+  if (result.changed) queueActivity({ action: "lesson_time_edited", reference: slotId, actor: auth.session });
   return NextResponse.json({ data: result.slot, warning: result.warning });
 }

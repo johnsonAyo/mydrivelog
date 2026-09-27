@@ -5,6 +5,7 @@ import { canWriteWorkspace } from "@/application/auth/can-write-workspace";
 import { notifyBookingChange } from "@/application/collections/notify-booking-change";
 import { currentSessionResolver } from "@/infrastructure/auth/current-session-resolver";
 import { changeCollectionBooking } from "@/infrastructure/collections/postgres-collection-repository";
+import { queueActivity, queueCritical } from "@/infrastructure/monitoring/telegram";
 import { authenticateRequest } from "@/presentation/http/authenticate-request";
 import { problem } from "@/presentation/http/problem";
 
@@ -24,5 +25,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const result = await changeCollectionBooking({ collectionId: id, bookingId, actor: { kind: "instructor", workspaceId: auth.session.workspaceId }, action: parsed.data.action, targetSlotId: parsed.data.action === "reschedule" ? parsed.data.slotId : undefined });
   if (!result.ok) return problem(result.reason === "not_found" ? 404 : 409, result.reason, "This booking or replacement time is no longer available");
   const emailStatus = await notifyBookingChange(result);
+  queueActivity({ action: `booking_${result.action}_by_instructor`, reference: bookingId, actor: auth.session });
+  if (emailStatus.learner !== "sent" || emailStatus.instructor !== "sent") queueCritical({ code: "booking_change_email_failed", route: "/api/v1/collections/[id]/bookings/[bookingId]", reference: bookingId });
   return NextResponse.json({ data: { action: result.action, emailStatus } });
 }

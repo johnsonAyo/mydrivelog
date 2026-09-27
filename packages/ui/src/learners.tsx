@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Button, EmptyState, Field, Heading, Text } from "./primitives";
+import { Button, EmptyState, Field, Heading, LoadingRegion, Skeleton, Stack, Text } from "./primitives";
 
 export type Learner = { id: string | null; profileId: string; name: string; email: string; sourceEmail: string; upcomingLessons: number };
 
@@ -28,8 +28,16 @@ export function LearnerDirectory({ learners, onSave, busy, renderProfileLink }: 
       <Heading as="h3" size="small">{editing ? "Correct details" : "Add learner"}</Heading>
       <Field id="learner-name" name="name" label="Name" defaultValue={editing?.name ?? ""} required />
       <Field id="learner-email" name="email" label="Email" type="email" defaultValue={editing?.email ?? ""} required />
-      <div><Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save learner"}</Button><Button type="button" variant="surface" onClick={() => { setAdding(false); setEditing(null); }}>Cancel</Button></div>
+      <div><Button type="submit" loading={busy}>Save learner</Button><Button type="button" variant="surface" onClick={() => { setAdding(false); setEditing(null); }}>Cancel</Button></div>
     </form>}
     {filtered.length ? <div data-dt="learner-list">{filtered.map((learner) => <article key={learner.sourceEmail} data-dt="learner-row"><div><strong>{renderProfileLink ? renderProfileLink(`/learners/${learner.profileId}`, learner.name) : <a href={`/learners/${learner.profileId}`}>{learner.name}</a>}</strong><Text variant="muted">{learner.email}</Text></div><span>{learner.upcomingLessons} upcoming {learner.upcomingLessons === 1 ? "lesson" : "lessons"}</span><Button type="button" variant="surface" onClick={() => { setAdding(false); setEditing(learner); }}>Edit</Button></article>)}</div> : <EmptyState title={query ? "No matching learners" : "No learners yet"} description={query ? "Try another name or email." : "Add a learner or invite someone from a shared week."} />}
   </section>;
+}
+
+export function LearnerDirectorySkeleton() {
+  return <LoadingRegion label="Loading learners"><section data-dt="learner-directory">
+    <div data-dt="collection-section-heading"><Stack gap="2"><Skeleton width="quarter" /><Skeleton shape="heading" width="third" /><Skeleton width="two-thirds" /></Stack><Skeleton shape="button" /></div>
+    <div data-dt="field"><Skeleton width="quarter" /><Skeleton shape="control" /></div>
+    <div data-dt="learner-list">{[0, 1, 2, 3].map((row) => <div key={row} data-dt="learner-row"><Stack gap="2"><Skeleton width="third" /><Skeleton width="half" /></Stack><Skeleton shape="button" /></div>)}</div>
+  </section></LoadingRegion>;
 }

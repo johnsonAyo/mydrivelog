@@ -161,7 +161,7 @@ export function AvailabilityForm({
           {[0, 15, 30, 45, 60].map((minutes) => <option key={minutes} value={minutes}>{minutes === 0 ? "No buffer" : `${minutes} minutes`}</option>)}
         </SelectField>
       </div>
-      <footer><Button type="submit" disabled={disabled || saving}>{saving ? "Saving…" : "Create availability"}</Button>{message && <p data-dt="form-feedback" role="status">{message}</p>}</footer>
+      <footer><Button type="submit" disabled={disabled} loading={saving}>Create availability</Button>{message && <p data-dt="form-feedback" role="status">{message}</p>}</footer>
     </form>
   );
 }

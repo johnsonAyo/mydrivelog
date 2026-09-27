@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Heading, Text } from "./primitives";
+import { Heading, LoadingRegion, Skeleton, Stack, Surface, Text } from "./primitives";
 
 type NavigationItem = {
   href: string;
@@ -62,4 +62,11 @@ export function ProductPage({ title, description, actions, children }: {
     </header>
     <main data-dt="product-content">{children}</main>
   </>;
+}
+
+export function ProductPageSkeleton() {
+  return <LoadingRegion label="Loading page">
+    <header data-dt="product-header"><Stack gap="2"><Skeleton shape="heading" width="third" /><Skeleton width="half" /></Stack></header>
+    <div data-dt="product-content"><Surface><Stack gap="3"><Skeleton width="quarter" /><Skeleton shape="heading" width="third" /><Skeleton width="two-thirds" /><Skeleton shape="block" /></Stack></Surface><Surface><Stack gap="3"><Skeleton shape="heading" width="quarter" /><Skeleton /><Skeleton width="two-thirds" /></Stack></Surface></div>
+  </LoadingRegion>;
 }

@@ -30,12 +30,16 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [action, setAction] = useState<"email" | "code" | "google" | null>(null);
+  const busy = action !== null;
+  const setBusy = (next: false | "email" | "code" | "google") => setAction(next || null);
 
   useEffect(() => {
     if (window.sessionStorage.getItem("mydrivelog.googleRedirect") !== "pending") return;
     window.sessionStorage.removeItem("mydrivelog.googleRedirect");
     const auth = firebaseClientAuth();
+    // Returning from a Google redirect: show the Google button as in flight while the workspace opens.
+    queueMicrotask(() => setBusy("google"));
     getRedirectResult(auth)
       .then(async (result) => {
         await auth.authStateReady();
@@ -51,7 +55,7 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
 
   async function sendCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setBusy(true);
+    setBusy("email");
     try {
       const address = email.trim().toLowerCase();
       await requestJson("/api/v1/auth/request", { method: "POST", body: { email: address } });
@@ -66,7 +70,7 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
 
   async function verifyCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setBusy(true);
+    setBusy("code");
     try {
       const { customToken } = await requestJson<{ customToken: string }>("/api/v1/auth/verify", { method: "POST", body: { email, code } });
       const credential = await signInWithCustomToken(firebaseClientAuth(), customToken);
@@ -81,7 +85,7 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
   }
 
   async function googleSignIn() {
-    setBusy(true);
+    setBusy("google");
     try {
       const auth = firebaseClientAuth();
       const provider = new GoogleAuthProvider();
@@ -115,13 +119,13 @@ export function InstructorAccess({ mode }: { mode: "start" | "sign-in" }) {
     <Text variant="muted">{mode === "start" ? "Plan availability, share bookable times, and keep every lesson on track." : "Sign in with a code sent to your email, or continue with Google."}</Text>
     {step === "email" ? <form data-dt="access-form" onSubmit={sendCode}>
       <Field id="access-email" name="email" label="Work email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
-      <Button type="submit" disabled={busy}>{busy ? "Sending code…" : "Continue with email"}</Button>
+      <Button type="submit" disabled={busy} loading={action === "email"}>Continue with email</Button>
     </form> : <form data-dt="access-form" onSubmit={verifyCode}>
       <div data-dt="access-feedback" role="status"><strong>Check your inbox.</strong><Text variant="muted">Enter the six-digit code sent to {email}. It expires in 10 minutes.</Text></div>
       <Field id="access-code" name="code" label="Sign-in code" type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} />
-      <Button type="submit" disabled={busy || code.length !== 6}>{busy ? "Checking…" : "Open workspace"}</Button>
+      <Button type="submit" disabled={busy || code.length !== 6} loading={action === "code"}>Open workspace</Button>
       <Button type="button" variant="ghost" disabled={busy} onClick={() => { setStep("email"); setCode(""); }}>Use a different email</Button>
     </form>}
-    {step === "email" && <div className="grid gap-3 border-t border-border pt-4"><Text variant="caption">Or continue with</Text><Button type="button" variant="outline" disabled={busy} onClick={googleSignIn}><GoogleIcon /> Google</Button></div>}
+    {step === "email" && <div className="grid gap-3 border-t border-border pt-4"><Text variant="caption">Or continue with</Text><Button type="button" variant="outline" disabled={busy} loading={action === "google"} onClick={googleSignIn}>{action !== "google" && <GoogleIcon />} Google</Button></div>}
   </section>;
 }

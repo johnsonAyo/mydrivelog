@@ -16,6 +16,7 @@ The component lab at `/component-lab` is the visual inventory. It uses inert act
 | --- | --- | --- |
 | Foundations | Container, Stack, Inline, Surface, Heading, Text, Button, Badge, Field, TextareaField, EmptyState | Isolated, prop-driven |
 | Navigation | ProductShell | Reused in the real Calendar |
+| Loading | Spinner, Button `loading`, Skeleton, LoadingRegion, and content-shaped skeletons (ProductPageSkeleton, CollectionEditorSkeleton, LearnerDirectorySkeleton, SchedulingSettingsSkeleton, LessonDetailSkeleton, PublicTimesSkeleton) | Live. A busy button keeps its label and shows a spinner; data waits show a skeleton shaped like the content |
 | Availability | CollectionChooser, CollectionEditor, PublicCollectionPicker | Prop-driven views used by the live collection and public-booking routes |
 | Legacy availability | AvailabilitySlotCard, AvailabilityCalendar, AvailabilityEditor, AvailabilityForm | Isolated examples of the earlier window model; no longer the main editor |
 | Operations | SchedulingNotice, AvailabilityReleaseSummary, BookingSummaryCard | Isolated previews; earlier release and booking endpoints exist |

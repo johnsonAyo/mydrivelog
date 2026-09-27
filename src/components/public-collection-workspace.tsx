@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { EmptyState, PublicCollectionPicker, toast, type PublicCollection } from "@drivetrack/ui";
+import { EmptyState, PublicCollectionPicker, PublicTimesSkeleton, toast, type PublicCollection } from "@drivetrack/ui";
 import { ApiError, errorMessage, requestJson, toastError } from "./api-request";
 
 type Outcome = { success: string; notice: string; failure: string };
@@ -59,7 +59,7 @@ export function PublicCollectionWorkspace({ token }: { token: string }) {
   }
 
   if (loadingError) return <div data-dt="public-booking-wrap"><EmptyState title="Booking unavailable" description={loadingError} /></div>;
-  if (!collection) return <div data-dt="public-booking-wrap"><p>Loading lesson times…</p></div>;
+  if (!collection) return <PublicTimesSkeleton />;
   return <PublicCollectionPicker collection={collection}
     onRequestAccess={(name, email) => act({ action: "request_access", name, email })}
     onBook={(slotId) => act({ action: "claim", slotId })}

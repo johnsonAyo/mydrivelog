@@ -91,11 +91,25 @@ export async function getLearnerProfile(workspaceId: string, profileId: string) 
 
 export async function saveLearner(workspaceId: string, input: { sourceEmail: string; name: string; email: string }) {
   const { client } = getDatabase();
-  const [row] = await client<{ id: string }[]>`
-    insert into learner_contacts (workspace_id, source_email, name, email)
-    values (${workspaceId}, ${input.sourceEmail.toLowerCase()}, ${input.name}, ${input.email.toLowerCase()})
-    on conflict (workspace_id, lower(source_email)) do update set name = excluded.name, email = excluded.email, updated_at = now()
-    returning id
-  `;
-  return row.id;
+  return client.begin(async (sql) => {
+    const sourceEmail = input.sourceEmail.toLowerCase();
+    const email = input.email.toLowerCase();
+    const [created] = await sql<{ id: string }[]>`
+      insert into learner_contacts (workspace_id, source_email, name, email)
+      values (${workspaceId}, ${sourceEmail}, ${input.name}, ${email})
+      on conflict (workspace_id, lower(source_email)) do nothing returning id
+    `;
+    if (created) return { id: created.id, changed: true, created: true };
+    const [updated] = await sql<{ id: string }[]>`
+      update learner_contacts set name = ${input.name}, email = ${email}, updated_at = now()
+      where workspace_id = ${workspaceId} and lower(source_email) = ${sourceEmail}
+        and (name is distinct from ${input.name} or email is distinct from ${email})
+      returning id
+    `;
+    if (updated) return { id: updated.id, changed: true, created: false };
+    const [existing] = await sql<{ id: string }[]>`
+      select id from learner_contacts where workspace_id = ${workspaceId} and lower(source_email) = ${sourceEmail}
+    `;
+    return { id: existing.id, changed: false, created: false };
+  });
 }
