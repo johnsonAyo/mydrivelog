@@ -1,7 +1,8 @@
 name: Launch journey
 
-# Runs the real sign-in → invitation → booking → email delivery journey against every staging and
-# production deployment, as the dedicated monitoring instructor only (never pilot data).
+# Staging: runs the real sign-in → invitation → booking → email delivery journey as the dedicated
+# monitoring instructor. Production: runs a read-only smoke check that writes nothing (no sign-in,
+# account, booking or email). The full journey never runs against production.
 # The result is posted as the commit status "Launch gate (<environment>)". Branch protection on main
 # requires "Launch gate (staging)", so merging staging into main (the production deploy) waits for it.
 on:
@@ -76,7 +77,7 @@ jobs:
         run: |
           gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=pending \
             -f context="Launch gate (${{ steps.target.outputs.target }})" \
-            -f description="Journey check running" -f target_url="$RUN_URL" > /dev/null
+            -f description="${{ steps.target.outputs.target == 'production' && 'Smoke check running' || 'Journey check running' }}" -f target_url="$RUN_URL" > /dev/null
 
       - name: Fail when the deployment itself failed
         if: steps.target.outputs.target != 'none' && env.STATE != 'success'
@@ -90,7 +91,7 @@ jobs:
           curl -fsS --max-time 20 -X POST "$RELAY/api/v1/monitoring/test-alert" \
             -H "content-type: application/json" -H "origin: $RELAY" \
             -H "x-monitoring-secret: $MONITORING_SECRET" -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
-            -d "$(jq -n --arg about "$TARGET" --arg step "deployment: Vercel deployment $STATE" '{outcome:"failed",about:$about,step:$step}')" > /dev/null || true
+            -d "$(jq -n --arg about "$TARGET" --arg step "deployment: Vercel deployment $STATE" --arg check "$([ "$TARGET" = production ] && echo smoke || echo journey)" '{outcome:"failed",about:$about,step:$step,check:$check}')" > /dev/null || true
           exit 1
 
       - name: Check out the deployed commit
@@ -107,8 +108,8 @@ jobs:
         with:
           node-version: 24
 
-      - name: Run the journey
-        if: steps.target.outputs.target != 'none' && env.STATE == 'success'
+      - name: Run the journey (staging only)
+        if: steps.target.outputs.target == 'staging' && env.STATE == 'success'
         env:
           MONITORING_BASE_URL: ${{ steps.target.outputs.url }}
           MONITORING_RELAY_URL: ${{ steps.target.outputs.relay }}
@@ -117,11 +118,21 @@ jobs:
           MONITORING_TEST_INSTRUCTOR_EMAIL: ${{ vars.MONITORING_TEST_INSTRUCTOR_EMAIL }}
         run: node scripts/monitoring-journey.mjs
 
+      - name: Run the read-only smoke check (production)
+        if: steps.target.outputs.target == 'production' && env.STATE == 'success'
+        env:
+          MONITORING_BASE_URL: ${{ steps.target.outputs.url }}
+          MONITORING_RELAY_URL: ${{ steps.target.outputs.relay }}
+          MONITORING_EXPECT_ENVIRONMENT: production
+          MONITORING_EXPECT_RELEASE: ${{ github.event_name == 'deployment_status' && github.event.deployment.sha || '' }}
+        run: node scripts/monitoring-smoke.mjs
+
       - name: Publish the gate result
         if: always() && steps.target.outputs.target != 'none'
         run: |
           outcome=$(jq -r '.outcome // "failed"' journey-result.json 2>/dev/null || echo failed)
-          if [ "$outcome" = passed ]; then state=success; description="Sign-in, booking, email delivery and Telegram alert passed"
+          if [ "$outcome" = passed ] && [ "${{ steps.target.outputs.target }}" = production ]; then state=success; description="Read-only smoke check passed: health, database, sign-in page, 4xx on bad input"
+          elif [ "$outcome" = passed ]; then state=success; description="Sign-in, booking, email delivery and Telegram alert passed"
           else
             state=failure
             description=$(jq -r '"Failed at \(.step): \(.message)"' journey-result.json 2>/dev/null || echo "Journey check did not finish")
