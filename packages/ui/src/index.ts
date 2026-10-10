@@ -6,8 +6,8 @@ export { ProductPage, ProductPageSkeleton, ProductShell } from "./product-shell"
 export { CollectionChooser, CollectionEditor, CollectionEditorSkeleton, CollectionSharing, PublicCollectionPicker, PublicTimesSkeleton } from "./collections";
 export type { CollectionSummary, CollectionDetail, CollectionSlot, CollectionFeedbackArea, ContactOption, SlotInput, PublicCollection } from "./collections";
 export { AvailabilitySlotCard, AvailabilityCalendar, AvailabilityEditor, AvailabilityForm } from "./availability";
-export { SchedulingSettingsForm, SchedulingSettingsSkeleton, AvailabilityWindowPanel, PublicBookingPicker } from "./booking";
-export type { SchedulingSettings, WindowDetail, ReleasedLink, PublicBooking } from "./booking";
+export { SchedulingSettingsForm, SchedulingSettingsSkeleton } from "./booking";
+export type { SchedulingSettings } from "./booking";
 export { TodayTimeline, LessonContextCard, DebriefComposer } from "./lessons";
 export { LessonDetail, LessonDetailSkeleton } from "./lesson-detail";
 export type { LessonView, LessonFields, LessonSkill, LessonPreview } from "./lesson-detail";
