@@ -13,7 +13,7 @@ const activeSession: SessionResolver = {
     workspaceId: "workspace-1",
     workspaceStatus: "active" as const,
     pilotActive: false,
-    trialEndsAt: new Date("2026-10-08T00:00:00.000Z"),
+    trialEndsAt: new Date("2099-01-01T00:00:00.000Z"), // Far future: this fixture is an active trial whatever today is
     paidThrough: null,
   })),
 };
