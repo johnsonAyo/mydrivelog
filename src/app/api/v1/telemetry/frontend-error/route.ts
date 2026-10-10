@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { queueCritical } from "@/infrastructure/monitoring/telegram";
 import { safeMonitoringPath } from "@/infrastructure/monitoring/sentry-privacy";
+import { shouldAlertBrowserError } from "@/infrastructure/monitoring/browser-error-filter";
 
 // The browser SDK reports its Sentry event id here so a crash reaches Telegram at once.
 // Public endpoint: same-origin JSON only, a 32-hex event id, and per-client plus global rate limits.
@@ -28,9 +29,12 @@ export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin");
   if (origin && origin !== request.nextUrl.origin) return new NextResponse(null, { status: 403 });
   if (request.headers.get("content-type")?.split(";")[0] !== "application/json") return new NextResponse(null, { status: 415 });
-  const body = await request.json().catch(() => null) as { eventId?: unknown; path?: unknown } | null;
+  const body = await request.json().catch(() => null) as { eventId?: unknown; path?: unknown; message?: unknown } | null;
   const eventId = body?.eventId;
   if (typeof eventId !== "string" || !EVENT_ID.test(eventId)) return new NextResponse(null, { status: 400 });
+  // The browser already filters noise; this repeats the checks the payload allows for old cached clients and direct posts.
+  const message = typeof body?.message === "string" ? body.message.slice(0, 500) : undefined;
+  if (!shouldAlertBrowserError({ message, userAgent: request.headers.get("user-agent") })) return NextResponse.json({ ignored: true }, { status: 202 });
   const key = request.headers.get("x-real-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (limited(key, Date.now())) return new NextResponse(null, { status: 429 });
   const path = typeof body?.path === "string" && body.path.startsWith("/") ? safeMonitoringPath(body.path.slice(0, 200)) : "/browser";
