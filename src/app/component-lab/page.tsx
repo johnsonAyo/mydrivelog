@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { monitoringEnvironment } from "@/infrastructure/monitoring/environment";
 import {
   AvailabilityCalendar,
   AvailabilityEditor,
@@ -40,7 +42,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Sample-data inventory for building components. Checked per request so a production
+// deployment never serves it, while development and staging keep it.
+export const dynamic = "force-dynamic";
+
 export default function ComponentLab() {
+  if (monitoringEnvironment() === "production") notFound();
   return (
     <Showcase>
       <ShowcaseIntro
